@@ -1,0 +1,105 @@
+<main>
+  <div class="layout">
+    <nav class="navbar">
+      <div class="brand-block">
+        <span class="brand-mark">G</span>
+        <div>
+          <div class="brand-title">Gemini Free API</div>
+          <div class="brand-copy">Clone web Angular + ASP.NET Core</div>
+        </div>
+      </div>
+
+      <div class="nav-links">
+        <a href="#ask">Ask</a>
+        <a href="#docs">Docs</a>
+      </div>
+    </nav>
+
+    <section id="ask" class="card hero-card">
+      <div class="section-heading">
+        <span class="eyebrow">Live playground</span>
+        <h1>Ask endpoint</h1>
+        <p>
+          This Angular frontend calls the ASP.NET Core proxy and sends your prompt to the
+          captured Gemini request flow.
+        </p>
+      </div>
+
+      <div class="endpoint-pills">
+        <span>POST /api/ask</span>
+        <span>GET /api/ask</span>
+        <span>Open CORS</span>
+      </div>
+
+      <form class="ask-form" [formGroup]="form" (ngSubmit)="submit()">
+        <label class="field-label" for="prompt">Prompt</label>
+        <textarea
+          id="prompt"
+          formControlName="prompt"
+          placeholder="Type your prompt..."
+        ></textarea>
+
+        <div class="actions">
+          <button type="submit" [disabled]="loading()">
+            {{ loading() ? 'Sending...' : 'Ask' }}
+          </button>
+          <button type="button" class="ghost-button" (click)="clear()" [disabled]="loading()">
+            Clear
+          </button>
+        </div>
+      </form>
+
+      @if (error()) {
+        <pre class="status-card status-card--error">{{ error() }}</pre>
+      }
+
+      @if (response()) {
+        <div class="chat-response">
+          <div class="response-header">Gemini response</div>
+          <div class="markdown-body" [innerHTML]="responseHtml()"></div>
+        </div>
+      }
+    </section>
+
+    <section id="docs" class="card docs-card">
+      <div class="section-heading section-heading--compact">
+        <span class="eyebrow">Reference</span>
+        <h2>API Documentation</h2>
+      </div>
+
+      <div class="docs-grid">
+        <article class="doc-block">
+          <h3>GET /api/ask</h3>
+          <p>Send the prompt through the query string.</p>
+          <pre><code>GET /api/ask?prompt=hello</code></pre>
+        </article>
+
+        <article class="doc-block">
+          <h3>POST /api/ask</h3>
+          <p>Send a JSON body from Angular or any frontend client.</p>
+          <pre><code>&#123;
+  "prompt": "hello from my custom gemini api"
+&#125;</code></pre>
+        </article>
+
+        <article class="doc-block">
+          <h3>Response</h3>
+          <p>The proxy returns the original prompt and the parsed text-only Gemini answer.</p>
+          <pre><code>&#123;
+  "prompt": "hello from my custom gemini api",
+  "response": "text only from Gemini"
+&#125;</code></pre>
+        </article>
+
+        <article class="doc-block">
+          <h3>CORS</h3>
+          <ul>
+            <li>Access-Control-Allow-Origin: *</li>
+            <li>Access-Control-Allow-Methods: GET, POST, OPTIONS</li>
+            <li>Access-Control-Allow-Headers: Content-Type, Authorization</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+  </div>
+</main>
