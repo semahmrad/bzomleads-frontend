@@ -1,105 +1,1301 @@
-<main>
-  <div class="layout">
-    <nav class="navbar">
-      <div class="brand-block">
-        <span class="brand-mark">G</span>
-        <div>
-          <div class="brand-title">Gemini Free API</div>
-          <div class="brand-copy">Clone web Angular + ASP.NET Core</div>
+<main class="shell">
+  <section class="hero-panel" id="prospects">
+    <nav class="topbar">
+      <div class="brand-cluster">
+        <span class="brand-chip">LR</span>
+        <div class="brand-copy-wrap">
+          <div class="brand-title">Lead Radar</div>
+          <div class="brand-copy">
+            Plateforme de prospection locale pour cibler rapidement les commerces de ta zone et
+            telecharger une liste exploitable.
+          </div>
         </div>
       </div>
 
       <div class="nav-links">
-        <a href="#ask">Ask</a>
-        <a href="#docs">Docs</a>
+        <a href="#prospects">Prospection</a>
+        <a href="#results">Resultats</a>
+        <a href="#guide">Guide</a>
       </div>
     </nav>
 
-    <section id="ask" class="card hero-card">
-      <div class="section-heading">
-        <span class="eyebrow">Live playground</span>
-        <h1>Ask endpoint</h1>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <span class="eyebrow">Prospection locale</span>
+        <h1>Construis une liste de prospects locale, claire et exportable en quelques clics.</h1>
         <p>
-          This Angular frontend calls the ASP.NET Core proxy and sends your prompt to the
-          captured Gemini request flow.
+          Choisis une ville, selectionne un type de commerce, coche les options utiles et lance la
+          recherche. Tu peux ensuite cibler les commerces sans site web, recuperer les contacts
+          publics des sites detectes, exporter la campagne en CSV et envoyer un email directement.
+        </p>
+
+        <div class="hero-badges">
+          <span>Recherche locale</span>
+          <span>Sans site web</span>
+          <span>Contacts publics</span>
+          <span>Export CSV</span>
+          <span>Campagne email</span>
+        </div>
+
+        <div class="score-strip">
+          @for (card of scoreCards(); track card.label) {
+            <article class="score-card" [attr.data-tone]="card.tone">
+              <span>{{ card.label }}</span>
+              <strong>{{ card.value }}</strong>
+            </article>
+          }
+        </div>
+      </div>
+
+      <aside class="hero-side">
+        <article class="glass-note glass-note--focus">
+          <span class="eyebrow eyebrow--mini">Campagne active</span>
+          <h2>{{ activeBusinessType().label }}</h2>
+          <p>{{ activeBusinessType().hint }}</p>
+          <p>Le parcours reste simple: une zone, un segment, quelques options utiles et un export.</p>
+        </article>
+
+        <article class="glass-note">
+          <span class="eyebrow eyebrow--mini">Vue campagne</span>
+          <div class="highlight-grid">
+            @for (highlight of workspaceHighlights(); track highlight.label) {
+              <article class="highlight-card" [attr.data-tone]="highlight.tone">
+                <span>{{ highlight.label }}</span>
+                <strong>{{ highlight.value }}</strong>
+              </article>
+            }
+          </div>
+        </article>
+
+        <article class="glass-note">
+          <span class="eyebrow eyebrow--mini">En 3 etapes</span>
+          <ul class="flow-list">
+            @for (step of campaignFlow; track step) {
+              <li>{{ step }}</li>
+            }
+          </ul>
+        </article>
+      </aside>
+    </div>
+  </section>
+
+  <section class="workspace-grid">
+    <section class="panel panel--search">
+      <div class="panel-head">
+        <div>
+          <span class="eyebrow eyebrow--mini">Nouvelle recherche</span>
+          <h2>Lance ta prospection</h2>
+        </div>
+        <p>
+          Renseigne la zone, choisis le type de commerce, active les options utiles puis demarre la
+          collecte.
         </p>
       </div>
 
-      <div class="endpoint-pills">
-        <span>POST /api/ask</span>
-        <span>GET /api/ask</span>
-        <span>Open CORS</span>
+      <div class="search-layout">
+        <form class="lead-form" [formGroup]="leadForm" (ngSubmit)="searchLeads()">
+          <div class="field field--full">
+            <label for="locationQuery">Ville ou adresse</label>
+            <input
+              id="locationQuery"
+              type="text"
+              formControlName="locationQuery"
+              placeholder="Paris 11e, Lyon Part-Dieu, 10 rue de Rivoli..."
+            />
+            <p class="field-helper">
+              Exemples: une ville, un quartier, une rue ou une zone commerciale.
+            </p>
+            @if (
+              leadForm.controls.locationQuery.invalid && leadForm.controls.locationQuery.touched
+            ) {
+              <p class="field-feedback">
+                Ajoute une ville, un quartier ou une adresse pour lancer la recherche.
+              </p>
+            }
+          </div>
+
+          <div class="field">
+            <label for="businessType">Type de commerce</label>
+            <select id="businessType" formControlName="businessType">
+              @for (option of businessTypeOptions; track option.value) {
+                <option [value]="option.value">{{ option.label }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="maxResults">Nouveaux resultats a chercher</label>
+            <input
+              id="maxResults"
+              type="number"
+              formControlName="maxResults"
+              min="1"
+              max="100"
+              step="1"
+              placeholder="10"
+            />
+            <p class="field-helper">
+              Ce nombre correspond uniquement aux nouvelles fiches a ajouter. Les resultats deja
+              enregistres en base seront aussi retournes automatiquement.
+            </p>
+            @if (leadForm.controls.maxResults.invalid && leadForm.controls.maxResults.touched) {
+              <p class="field-feedback">
+                Saisis un nombre entre 1 et 100 pour le nombre maximum de nouvelles fiches.
+              </p>
+            }
+          </div>
+
+          <div class="toggle-grid field--full">
+            <label class="toggle">
+              <input
+                type="checkbox"
+                formControlName="onlyWithoutWebsite"
+                (change)="syncLeadToggles()"
+              />
+              <span>
+                <strong>Cibler uniquement les commerces sans site web</strong>
+                <small>
+                  Ideal pour une offre de creation de site, de refonte ou de presence digitale.
+                </small>
+              </span>
+            </label>
+
+            <label class="toggle">
+              <input
+                type="checkbox"
+                formControlName="extractEmailsFromSites"
+                (change)="syncLeadToggles()"
+              />
+              <span>
+                <strong>Recuperer les contacts publics depuis les sites trouves</strong>
+                <small>
+                  La plateforme cherche les emails, telephones et pages de contact visibles.
+                </small>
+              </span>
+            </label>
+
+            <label class="toggle">
+              <input type="checkbox" formControlName="useGeminiForEmailExtraction" />
+              <span>
+                <strong>Activer l analyse avancee des pages</strong>
+                <small>
+                  Pour enrichir davantage les fiches quand les informations sont moins directes a
+                  reperer.
+                </small>
+              </span>
+            </label>
+          </div>
+
+          <div class="action-row field--full">
+            <button type="submit" [disabled]="leadLoading()">
+              {{ leadLoading() ? 'Recherche en cours...' : 'Lancer la prospection' }}
+            </button>
+            <button
+              type="button"
+              class="ghost-button"
+              (click)="resetLeadWorkspace()"
+              [disabled]="leadLoading()"
+            >
+              Reinitialiser
+            </button>
+          </div>
+        </form>
+
+        <aside class="search-aside">
+          <article class="aside-card">
+            <span class="eyebrow eyebrow--mini">Vue rapide</span>
+            <div class="aside-highlights">
+              @for (highlight of workspaceHighlights(); track highlight.label) {
+                <div class="aside-line">
+                  <span>{{ highlight.label }}</span>
+                  <strong>{{ highlight.value }}</strong>
+                </div>
+              }
+            </div>
+          </article>
+
+          <div class="stacked-cards">
+            @for (note of campaignNotes; track note) {
+              <article class="micro-card">
+                <span class="micro-index">{{ $index + 1 }}</span>
+                <p>{{ note }}</p>
+              </article>
+            }
+          </div>
+        </aside>
       </div>
 
-      <form class="ask-form" [formGroup]="form" (ngSubmit)="submit()">
-        <label class="field-label" for="prompt">Prompt</label>
-        <textarea
-          id="prompt"
-          formControlName="prompt"
-          placeholder="Type your prompt..."
-        ></textarea>
-
-        <div class="actions">
-          <button type="submit" [disabled]="loading()">
-            {{ loading() ? 'Sending...' : 'Ask' }}
-          </button>
-          <button type="button" class="ghost-button" (click)="clear()" [disabled]="loading()">
-            Clear
-          </button>
-        </div>
-      </form>
-
-      @if (error()) {
-        <pre class="status-card status-card--error">{{ error() }}</pre>
-      }
-
-      @if (response()) {
-        <div class="chat-response">
-          <div class="response-header">Gemini response</div>
-          <div class="markdown-body" [innerHTML]="responseHtml()"></div>
-        </div>
+      @if (leadError()) {
+        <pre class="status-box status-box--error">{{ leadError() }}</pre>
       }
     </section>
 
-    <section id="docs" class="card docs-card">
-      <div class="section-heading section-heading--compact">
-        <span class="eyebrow">Reference</span>
-        <h2>API Documentation</h2>
+    <aside class="panel panel--playbook">
+      <div class="panel-head">
+        <div>
+          <span class="eyebrow eyebrow--mini">Cas d usage</span>
+          <h2>Une plateforme faite pour vendre</h2>
+        </div>
+        <p>
+          Que tu vendes des produits, des services ou une offre digitale, la recherche reste simple
+          et immediate.
+        </p>
       </div>
 
-      <div class="docs-grid">
-        <article class="doc-block">
-          <h3>GET /api/ask</h3>
-          <p>Send the prompt through the query string.</p>
-          <pre><code>GET /api/ask?prompt=hello</code></pre>
+      @for (scenario of usageScenarios; track scenario.title) {
+        <article class="strategy-card">
+          <h3>{{ scenario.title }}</h3>
+          <p>{{ scenario.description }}</p>
         </article>
+      }
+    </aside>
+  </section>
 
-        <article class="doc-block">
-          <h3>POST /api/ask</h3>
-          <p>Send a JSON body from Angular or any frontend client.</p>
-          <pre><code>&#123;
-  "prompt": "hello from my custom gemini api"
-&#125;</code></pre>
-        </article>
+  <section class="panel panel--results" id="results">
+    <div class="panel-head panel-head--spread">
+      <div>
+        <span class="eyebrow eyebrow--mini">Lead board</span>
+        <h2>Resultats de prospection</h2>
+      </div>
 
-        <article class="doc-block">
-          <h3>Response</h3>
-          <p>The proxy returns the original prompt and the parsed text-only Gemini answer.</p>
-          <pre><code>&#123;
-  "prompt": "hello from my custom gemini api",
-  "response": "text only from Gemini"
-&#125;</code></pre>
-        </article>
+      @if (leadResponse()) {
+        <div class="results-actions">
+          <div class="results-summary">
+            <span>{{ leadResponse()!.total }} fiches</span>
+            <span>{{ leadResponse()!.existingResultsCount }} deja en base</span>
+            <span>{{ leadResponse()!.newResultsCount }} nouvelles</span>
+            <span>{{ leadResponse()!.withWebsiteCount }} avec site</span>
+            <span>{{ leadResponse()!.withoutWebsiteCount }} sans site</span>
+            <span>{{ campaignRecipientDisplayCount() }} emails exploitables</span>
+          </div>
 
-        <article class="doc-block">
-          <h3>CORS</h3>
-          <ul>
-            <li>Access-Control-Allow-Origin: *</li>
-            <li>Access-Control-Allow-Methods: GET, POST, OPTIONS</li>
-            <li>Access-Control-Allow-Headers: Content-Type, Authorization</li>
-          </ul>
-        </article>
+          <div class="results-buttons">
+            <button
+              type="button"
+              class="ghost-button results-export"
+              (click)="openEmailCampaignModal()"
+              [disabled]="!canLaunchCampaignEmail()"
+            >
+              Envoyer une campagne email
+            </button>
+            <button
+              type="button"
+              class="ghost-button results-export"
+              (click)="downloadResultsCsv()"
+              [disabled]="!leadItems().length"
+            >
+              Telecharger le CSV
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+
+    @if (resultFilterChips().length) {
+      <div class="filter-strip">
+        @for (chip of resultFilterChips(); track chip) {
+          <span>{{ chip }}</span>
+        }
+      </div>
+    }
+
+    @if (leadDatabaseSummary()) {
+      <div class="inline-status inline-status--database" data-tone="success">
+        {{ leadDatabaseSummary() }}
+      </div>
+    }
+
+    @if (!leadLoading() && !leadError() && !leadResponse()) {
+      <div class="empty-state">
+        <h3>La prospection n a pas encore ete lancee</h3>
+        <p>Choisis une zone, un segment et lance ta premiere recherche de leads.</p>
+      </div>
+    }
+
+    @if (leadLoading()) {
+      <div class="empty-state empty-state--loading">
+        <h3>Recherche en cours...</h3>
+        <p>{{ leadLoadingMessage() }}</p>
+      </div>
+    }
+
+    @if (leadResponse() && !leadItems().length) {
+      <div class="empty-state">
+        <h3>Aucun lead ne correspond aux filtres</h3>
+        <p>Essaie une autre ville, un autre type de commerce ou retire le filtre sans site web.</p>
+      </div>
+    }
+
+    @if (leadItems().length) {
+      <div class="lead-grid">
+        @for (item of leadItems(); track trackLead($index, item)) {
+          <article class="lead-card" [attr.data-tone]="leadOpportunityTone(item)">
+            <div class="lead-card__topline">
+              <div class="lead-card__badges">
+                <span>{{ item.businessLabel }}</span>
+                @if (item.hasWebsite) {
+                  <span class="badge badge--green">Site web</span>
+                } @else {
+                  <span class="badge badge--amber">Sans site</span>
+                }
+              </div>
+
+              <span class="opportunity-chip" [attr.data-tone]="leadOpportunityTone(item)">
+                {{ leadOpportunityText(item) }}
+              </span>
+            </div>
+
+            <div class="lead-card__head">
+              <div>
+                <h3>{{ item.name }}</h3>
+                <p class="lead-card__address">
+                  {{ item.formattedAddress || 'Adresse indisponible' }}
+                </p>
+              </div>
+
+              @if (item.rating != null) {
+                <div class="rating-chip">
+                  <strong>{{ formatRating(item) }}</strong>
+                  <small>{{ item.userRatingCount ?? 0 }} avis</small>
+                </div>
+              }
+            </div>
+
+            <div class="lead-card__body">
+              <div class="detail-list">
+                <div>
+                  <span>Telephone</span>
+                  <strong>{{ primaryPhone(item) || 'Non disponible' }}</strong>
+                </div>
+                <div>
+                  <span>Statut</span>
+                  <strong>{{ formatBusinessStatus(item.businessStatus) }}</strong>
+                </div>
+                <div>
+                  <span>Origine des contacts</span>
+                  <strong>{{ formatExtractionSource(item.emailExtractionSource) }}</strong>
+                </div>
+              </div>
+
+              <div class="lead-card__links">
+                @if (item.websiteUri) {
+                  <a [href]="item.websiteUri" target="_blank" rel="noopener">Voir le site</a>
+                }
+                @if (item.googleMapsUri) {
+                  <a [href]="item.googleMapsUri" target="_blank" rel="noopener">
+                    Ouvrir la fiche carte
+                  </a>
+                }
+              </div>
+
+              @if (!item.hasWebsite) {
+                <div class="site-generator-card">
+                  <div class="site-generator-card__copy">
+                    <span>Site vitrine AI</span>
+                    <p>
+                      Cree un site statique deploye automatiquement avec un nouveau repo GitHub,
+                      un design unique et un lien live pret a partager.
+                    </p>
+                  </div>
+
+                  <div class="site-generator-card__actions">
+                    <button
+                      type="button"
+                      class="mini-button site-generator-card__button"
+                      (click)="openWebsiteStudio(item, 'generate')"
+                      [disabled]="isGeneratingWebsite(item.placeId)"
+                    >
+                      {{
+                        isGeneratingWebsite(item.placeId)
+                          ? 'Generation en cours...'
+                          : 'Generate AI Website'
+                      }}
+                    </button>
+
+                    <button
+                      type="button"
+                      class="mini-button mini-button--ghost site-generator-card__button"
+                      (click)="openWebsiteStudio(item, 'edit')"
+                      [disabled]="isEditingWebsite(item.placeId)"
+                    >
+                      {{ isEditingWebsite(item.placeId) ? 'Edition en cours...' : 'Edit with AI' }}
+                    </button>
+                  </div>
+                </div>
+
+                @if (websiteGenerationMessage(item.placeId)) {
+                  <div
+                    class="inline-status"
+                    [attr.data-tone]="websiteGenerationMessage(item.placeId)!.tone"
+                  >
+                    {{ websiteGenerationMessage(item.placeId)!.text }}
+                  </div>
+                }
+
+                @if (latestWebsiteProject(item.placeId); as latestProject) {
+                  <div class="website-project-summary">
+                    <div class="website-project-summary__head">
+                      <div>
+                        <span>Projet actif</span>
+                        <strong>{{ latestProject.templateName }}</strong>
+                      </div>
+
+                      <span class="website-project-summary__count">
+                        {{ websiteProjectCount(item.placeId) }}
+                        generation{{ websiteProjectCount(item.placeId) > 1 ? 's' : '' }}
+                      </span>
+                    </div>
+
+                    <p>{{ latestProject.designConcept }}</p>
+
+                    @if (latestProject.changeSummary) {
+                      <p class="website-project-summary__change">{{ latestProject.changeSummary }}</p>
+                    }
+
+                    <div class="website-project-summary__meta">
+                      <span>Modele: {{ latestProject.modelUsed }}</span>
+                      <span>Maj: {{ formatWebsiteProjectDate(latestProject.updatedUtc) }}</span>
+                    </div>
+
+                    <div class="website-project-summary__links">
+                      <a [href]="latestProject.productionUrl" target="_blank" rel="noopener">
+                        Voir le site live
+                      </a>
+                      <a [href]="latestProject.repositoryUrl" target="_blank" rel="noopener">
+                        Voir le repo GitHub
+                      </a>
+                      <a [href]="latestProject.downloadUrl" target="_blank" rel="noopener">
+                        Telecharger le ZIP
+                      </a>
+                    </div>
+                  </div>
+                }
+              }
+
+              @if (hasExtractedContacts(item)) {
+                <div class="email-block">
+                  <div class="email-block__head">
+                    <span>Contacts publics trouves</span>
+                    @if (item.emailAddresses.length) {
+                      <button type="button" class="mini-button" (click)="copyEmails(item)">
+                        {{ copiedPlaceId() === item.placeId ? 'Emails copies' : 'Copier emails' }}
+                      </button>
+                    }
+                  </div>
+
+                  @if (item.emailAddresses.length) {
+                    <div class="contact-group">
+                      <span>Emails</span>
+                      <div class="email-pills">
+                        @for (email of item.emailAddresses; track email) {
+                          <a class="email-pill" [href]="'mailto:' + email">{{ email }}</a>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  @if (item.contactPhoneNumbers.length) {
+                    <div class="contact-group">
+                      <span>Telephones site</span>
+                      <div class="email-pills">
+                        @for (phone of item.contactPhoneNumbers; track phone) {
+                          <a class="email-pill" [href]="'tel:' + phone">{{ phone }}</a>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  @if (item.contactPageUris.length) {
+                    <div class="contact-group">
+                      <span>Pages contact</span>
+                      <div class="email-pills">
+                        @for (contactPage of item.contactPageUris; track contactPage) {
+                          <a class="email-pill" [href]="contactPage" target="_blank" rel="noopener">
+                            Voir la page contact
+                          </a>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="guide-grid" id="guide">
+    <section class="panel panel--guide">
+      <div class="panel-head">
+        <div>
+          <span class="eyebrow eyebrow--mini">Guide rapide</span>
+          <h2>Comment utiliser la plateforme</h2>
+        </div>
+        <p>Un petit mode d emploi simple pour demarrer sans jargon technique.</p>
+      </div>
+
+      <div class="guide-list">
+        @for (step of quickGuide; track step.title) {
+          <article class="micro-card guide-item">
+            <span class="micro-index">{{ $index + 1 }}</span>
+            <div>
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.description }}</p>
+            </div>
+          </article>
+        }
       </div>
     </section>
-  </div>
+
+    <aside class="panel panel--notes">
+      <div class="panel-head">
+        <div>
+          <span class="eyebrow eyebrow--mini">Options</span>
+          <h2>Ce que font les cases a cocher</h2>
+        </div>
+        <p>Chaque option a un role clair pour preparer une campagne plus pertinente.</p>
+      </div>
+
+      @for (option of optionDocs; track option.title) {
+        <article class="strategy-card">
+          <h3>{{ option.title }}</h3>
+          <p>{{ option.description }}</p>
+        </article>
+      }
+    </aside>
+  </section>
 </main>
+
+@if (websiteStudioOpen()) {
+  @if (websiteStudioItem(); as studioItem) {
+    <section
+      class="campaign-modal website-studio-modal"
+      aria-labelledby="website-studio-title"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div class="campaign-modal__backdrop" (click)="closeWebsiteStudio()"></div>
+
+      <div class="panel campaign-modal__panel website-studio-modal__panel">
+        <div class="campaign-modal__head">
+          <div>
+            <span class="eyebrow eyebrow--mini">Website studio</span>
+            <h2 id="website-studio-title">{{ studioItem.name }}</h2>
+            <p>
+              Prepare une generation complete avec tes propres images, puis deploie un site
+              statique dans un repo GitHub public distinct pour ce commerce.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="ghost-button ghost-button--small"
+            (click)="closeWebsiteStudio()"
+          >
+            Fermer
+          </button>
+        </div>
+
+        <div class="website-studio-modal__grid">
+          <div class="website-studio-main">
+            <article class="aside-card website-studio-hero">
+              <div class="website-studio-hero__copy">
+                <span class="eyebrow eyebrow--mini">Commerce cible</span>
+                <h3>{{ studioItem.name }}</h3>
+                <p>
+                  {{ studioItem.businessLabel }}
+                  @if (studioItem.formattedAddress) {
+                    - {{ studioItem.formattedAddress }}
+                  }
+                </p>
+              </div>
+
+              @if (studioItem.rating != null) {
+                <div class="rating-chip website-studio-hero__rating">
+                  <strong>{{ formatRating(studioItem) }}</strong>
+                  <small>{{ studioItem.userRatingCount ?? 0 }} avis publics</small>
+                </div>
+              }
+            </article>
+
+            @if (websiteGenerationMessage(studioItem.placeId)) {
+              <div
+                class="inline-status inline-status--studio"
+                [attr.data-tone]="websiteGenerationMessage(studioItem.placeId)!.tone"
+              >
+                {{ websiteGenerationMessage(studioItem.placeId)!.text }}
+              </div>
+            }
+
+            <article class="aside-card website-studio-panel">
+              <div class="website-studio-panel__head">
+                <div>
+                  <span class="eyebrow eyebrow--mini">Assets personnalises</span>
+                  <h3>Logo et images prioritaires</h3>
+                </div>
+                <p>
+                  Upload tes logos, produits, interieurs ou visuels promotionnels pour que l IA
+                  les privilegie dans le rendu final. Tu peux aussi revenir apres generation pour
+                  remplacer des images existantes ou en ajouter d autres.
+                </p>
+              </div>
+
+              <div class="website-upload-grid">
+                <label class="upload-dropzone">
+                  <input type="file" accept="image/*" (change)="handleWebsiteLogoSelection($event)" />
+                  <span>Logo principal</span>
+                  <strong>
+                    {{ websiteStudioLogoFileName() || 'Choisir un logo' }}
+                  </strong>
+                  <small>Ideal pour le header, le splash screen et les metas sociales.</small>
+                </label>
+
+                <label class="upload-dropzone">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    (change)="handleWebsiteImageSelection($event)"
+                  />
+                  <span>Galerie custom</span>
+                  <strong>
+                    {{
+                      websiteStudioImageFileNames().length
+                        ? websiteStudioImageFileNames().length + ' image(s) selectionnee(s)'
+                        : 'Ajouter des photos'
+                    }}
+                  </strong>
+                  <small>Produits, interieur, facade, menu, equipe ou ambiance.</small>
+                </label>
+              </div>
+
+              @if (websiteStudioLogoFileName()) {
+                <div class="upload-list">
+                  <div class="upload-pill">
+                    <span>{{ websiteStudioLogoFileName() }}</span>
+                    <button type="button" class="mini-button mini-button--ghost" (click)="clearWebsiteLogo()">
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              }
+
+              @if (websiteStudioImageFileNames().length) {
+                <div class="upload-list">
+                  @for (
+                    imageName of websiteStudioImageFileNames();
+                    track imageName;
+                    let imageIndex = $index
+                  ) {
+                    <div class="upload-pill">
+                      <span>{{ imageName }}</span>
+                      <button
+                        type="button"
+                        class="mini-button mini-button--ghost"
+                        (click)="removeWebsiteImage(imageIndex)"
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                  }
+
+                  <button
+                    type="button"
+                    class="mini-button mini-button--ghost upload-clear"
+                    (click)="clearWebsiteImages()"
+                  >
+                    Vider les images
+                  </button>
+                </div>
+              }
+            </article>
+
+            <article class="aside-card website-studio-panel">
+              <div class="website-studio-panel__head">
+                <div>
+                  <span class="eyebrow eyebrow--mini">Workflow IA</span>
+                  <h3>Generation ou edition</h3>
+                </div>
+                <p>
+                  Une nouvelle generation cree toujours un concept neuf. Edit with AI modifie le
+                  projet selectionne sans effacer le reste, y compris quand tu uploades de
+                  nouvelles images apres coup.
+                </p>
+              </div>
+
+              <div class="composer-mode-switch website-studio-mode-switch">
+                <button
+                  type="button"
+                  class="composer-mode-button"
+                  [attr.data-active]="websiteStudioMode() === 'generate'"
+                  (click)="setWebsiteStudioMode('generate')"
+                >
+                  Nouvelle generation
+                </button>
+                <button
+                  type="button"
+                  class="composer-mode-button"
+                  [attr.data-active]="websiteStudioMode() === 'edit'"
+                  (click)="setWebsiteStudioMode('edit')"
+                >
+                  Edit with AI
+                </button>
+              </div>
+
+              @if (websiteStudioMode() === 'generate') {
+                <div class="website-studio-callout-grid">
+                  @for (card of websiteStudioGuide; track card.title) {
+                    <article class="micro-card website-studio-callout">
+                      <span class="micro-index">{{ $index + 1 }}</span>
+                      <div>
+                        <h3>{{ card.title }}</h3>
+                        <p>{{ card.description }}</p>
+                      </div>
+                    </article>
+                  }
+                </div>
+
+                <div class="action-row website-studio-actions">
+                  <button
+                    type="button"
+                    (click)="submitWebsiteGenerationFromStudio()"
+                    [disabled]="websiteStudioBusy()"
+                  >
+                    {{
+                      websiteStudioBusy() && websiteProjectBusyMode() === 'generate'
+                        ? 'Generation et deploiement...'
+                        : 'Generer et deployer ce site'
+                    }}
+                  </button>
+                </div>
+              } @else {
+                @if (websiteStudioActiveProject()) {
+                  <div class="field field--full">
+                    <label for="website-edit-prompt">Instruction naturelle</label>
+                    <textarea
+                      id="website-edit-prompt"
+                      [value]="websiteStudioEditPrompt()"
+                      placeholder="Exemple: remplace le hero avec mes nouvelles images, ajoute 2 photos a la galerie et garde le meme layout."
+                      (input)="updateWebsiteEditPrompt($any($event.target).value)"
+                    ></textarea>
+                    <p class="field-helper">
+                      Le systeme conserve le projet selectionne et ne modifie que les parties
+                      demandees. Si tu uploades de nouvelles images, tu peux ecrire simplement
+                      remplacer les visuels, ajouter des photos ou changer l image hero.
+                    </p>
+                  </div>
+
+                  <div class="website-idea-strip">
+                    @for (idea of websiteEditIdeas; track idea) {
+                      <button
+                        type="button"
+                        class="mini-button mini-button--ghost"
+                        (click)="useWebsiteEditIdea(idea)"
+                      >
+                        {{ idea }}
+                      </button>
+                    }
+                  </div>
+
+                  <div class="action-row website-studio-actions">
+                    <button
+                      type="button"
+                      (click)="submitWebsiteEditFromStudio()"
+                      [disabled]="websiteStudioBusy()"
+                    >
+                      {{
+                        websiteStudioBusy() && websiteProjectBusyMode() === 'edit'
+                          ? 'Mise a jour et redeploiement...'
+                          : 'Appliquer Edit with AI'
+                      }}
+                    </button>
+                  </div>
+                } @else {
+                  <div class="empty-state website-studio-empty">
+                    <h3>Genere d abord un premier site</h3>
+                    <p>
+                      Aucun projet n est encore disponible pour l edition. Lance une nouvelle
+                      generation pour creer le premier repo et le premier site live.
+                    </p>
+                  </div>
+                }
+              }
+            </article>
+          </div>
+
+          <aside class="website-studio-sidebar">
+            <article class="aside-card website-studio-panel">
+              <span class="eyebrow eyebrow--mini">Projet actif</span>
+
+              @if (websiteStudioActiveProject(); as activeProject) {
+                <div class="website-active-project">
+                  <div class="website-active-project__head">
+                    <div>
+                      <h3>{{ activeProject.templateName }}</h3>
+                      <p>{{ activeProject.designConcept }}</p>
+                    </div>
+                    <span class="opportunity-chip" data-tone="green">
+                      {{ activeProject.modelUsed }}
+                    </span>
+                  </div>
+
+                  @if (activeProject.changeSummary) {
+                    <div class="inline-status" data-tone="success">
+                      {{ activeProject.changeSummary }}
+                    </div>
+                  }
+
+                  <div class="detail-list website-project-detail-list">
+                    <div>
+                      <span>Derniere mise a jour</span>
+                      <strong>{{ formatWebsiteProjectDate(activeProject.updatedUtc) }}</strong>
+                    </div>
+                    <div>
+                      <span>Concept</span>
+                      <strong>{{ activeProject.designConcept }}</strong>
+                    </div>
+                  </div>
+
+                  <div class="website-project-summary__links website-project-summary__links--stacked">
+                    <a [href]="activeProject.productionUrl" target="_blank" rel="noopener">
+                      Ouvrir le site live
+                    </a>
+                    <a [href]="activeProject.repositoryUrl" target="_blank" rel="noopener">
+                      Ouvrir le repo GitHub
+                    </a>
+                    <a [href]="activeProject.downloadUrl" target="_blank" rel="noopener">
+                      Telecharger le pack ZIP
+                    </a>
+                  </div>
+
+                  @if (activeProject.prioritizedAssets.length) {
+                    <div class="contact-group">
+                      <span>Assets priorises</span>
+                      <div class="email-pills">
+                        @for (asset of activeProject.prioritizedAssets; track asset) {
+                          <span class="email-pill email-pill--readonly">{{ asset }}</span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="recipient-empty">
+                  Aucun projet genere pour ce commerce pour le moment.
+                </div>
+              }
+            </article>
+
+            <article class="aside-card website-studio-panel">
+              <div class="recipient-toolbar">
+                <span class="eyebrow eyebrow--mini">Generations</span>
+                <strong>{{ websiteStudioProjects().length }}</strong>
+              </div>
+
+              <p class="field-helper">
+                Chaque nouvelle generation cree un repo GitHub distinct avec un concept
+                visuellement different.
+              </p>
+
+              <div class="website-version-list">
+                @if (!websiteStudioProjects().length) {
+                  <div class="recipient-empty">
+                    Aucune version n a encore ete creee pour ce commerce.
+                  </div>
+                }
+
+                @for (project of websiteStudioProjects(); track trackWebsiteProject($index, project)) {
+                  <button
+                    type="button"
+                    class="website-version-card"
+                    [attr.data-active]="websiteStudioActiveProject().projectId === project.projectId"
+                    (click)="selectWebsiteProject(project.projectId)"
+                  >
+                    <span>{{ project.templateName }}</span>
+                    <strong>{{ project.designConcept }}</strong>
+                    <small>{{ formatWebsiteProjectDate(project.updatedUtc) }}</small>
+                  </button>
+                }
+              </div>
+            </article>
+          </aside>
+        </div>
+      </div>
+    </section>
+  }
+}
+
+@if (emailCampaignOpen()) {
+  <section class="campaign-modal" aria-labelledby="campaign-title" aria-modal="true" role="dialog">
+    <div class="campaign-modal__backdrop" (click)="closeEmailCampaignModal()"></div>
+
+    <div class="panel campaign-modal__panel">
+      <div class="campaign-modal__head">
+        <div>
+          <span class="eyebrow eyebrow--mini">Campagne email</span>
+          <h2 id="campaign-title">Envoyer une campagne email</h2>
+          <p>
+            Configure ton SMTP, choisis les destinataires et redige ton message HTML avant l envoi.
+          </p>
+        </div>
+
+        <button type="button" class="ghost-button ghost-button--small" (click)="closeEmailCampaignModal()">
+          Fermer
+        </button>
+      </div>
+
+      <div class="campaign-modal__grid">
+        <form class="campaign-form" [formGroup]="emailCampaignForm" (ngSubmit)="sendEmailCampaign()">
+          <div class="field">
+            <label for="smtpHost">Serveur SMTP</label>
+            <input id="smtpHost" type="text" formControlName="host" placeholder="smtp.ton-domaine.com" />
+          </div>
+
+          <div class="field">
+            <label for="smtpPort">Port</label>
+            <input id="smtpPort" type="number" formControlName="port" min="1" max="65535" />
+          </div>
+
+          <div class="field">
+            <label for="smtpSecureMode">Mode de securite</label>
+            <select id="smtpSecureMode" formControlName="secureMode">
+              <option value="starttls">STARTTLS</option>
+              <option value="ssl_tls">SSL / TLS</option>
+              <option value="auto">Auto</option>
+              <option value="none">Aucune</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="smtpUsername">Identifiant SMTP</label>
+            <input
+              id="smtpUsername"
+              type="text"
+              formControlName="username"
+              placeholder="contact@ton-domaine.com"
+              (blur)="autofillFromEmail()"
+            />
+          </div>
+
+          <div class="field">
+            <label for="smtpPassword">Mot de passe SMTP</label>
+            <input
+              id="smtpPassword"
+              type="password"
+              formControlName="password"
+              placeholder="Mot de passe ou mot de passe applicatif"
+            />
+          </div>
+
+          <div class="field">
+            <label for="fromName">Nom expediteur</label>
+            <input id="fromName" type="text" formControlName="fromName" placeholder="Nom de votre societe" />
+          </div>
+
+          <div class="field field--full">
+            <label for="fromEmail">Email expediteur</label>
+            <input
+              id="fromEmail"
+              type="email"
+              formControlName="fromEmail"
+              placeholder="commercial@ton-domaine.com"
+            />
+            <p class="field-helper">
+              Cet email sera visible par les destinataires comme expediteur du message.
+            </p>
+          </div>
+
+          <div class="field field--full">
+            <label for="campaignSubject">Objet</label>
+            <input
+              id="campaignSubject"
+              type="text"
+              formControlName="subject"
+              placeholder="Objet de votre campagne email"
+            />
+          </div>
+
+          <div class="field field--full">
+            <label>Contenu du mail</label>
+            <div class="composer">
+              <div class="composer-mode-switch">
+                <button
+                  type="button"
+                  class="composer-mode-button"
+                  [attr.data-active]="emailComposerMode() === 'visual'"
+                  (click)="setComposerMode('visual')"
+                >
+                  Editeur visuel
+                </button>
+                <button
+                  type="button"
+                  class="composer-mode-button"
+                  [attr.data-active]="emailComposerMode() === 'html'"
+                  (click)="setComposerMode('html')"
+                >
+                  Code HTML
+                </button>
+              </div>
+
+              <div class="composer-toolbar">
+                @if (emailComposerMode() === 'visual') {
+                  <button type="button" class="toolbar-button" (click)="applyComposerCommand('bold')">
+                    Gras
+                  </button>
+                  <button type="button" class="toolbar-button" (click)="applyComposerCommand('italic')">
+                    Italique
+                  </button>
+                  <button type="button" class="toolbar-button" (click)="applyComposerCommand('underline')">
+                    Souligne
+                  </button>
+                  <button type="button" class="toolbar-button" (click)="applyComposerHeading('h2')">
+                    Titre
+                  </button>
+                  <button type="button" class="toolbar-button" (click)="applyComposerHeading('p')">
+                    Paragraphe
+                  </button>
+                  <button
+                    type="button"
+                    class="toolbar-button"
+                    (click)="applyComposerCommand('insertUnorderedList')"
+                  >
+                    Liste
+                  </button>
+                  <button type="button" class="toolbar-button" (click)="insertComposerLink()">
+                    Lien
+                  </button>
+                }
+
+                <button type="button" class="toolbar-button" (click)="insertComposerImageUrl()">
+                  Image URL
+                </button>
+                <button type="button" class="toolbar-button" (click)="openComposerImagePicker()">
+                  Import image
+                </button>
+                <button
+                  type="button"
+                  class="toolbar-button toolbar-button--danger"
+                  (click)="clearComposerBody()"
+                >
+                  Vider
+                </button>
+              </div>
+
+              <input
+                #composerImageInput
+                class="composer-image-input"
+                type="file"
+                accept="image/*"
+                (change)="handleComposerImageSelection($event)"
+              />
+
+              @if (emailComposerMode() === 'visual') {
+                <div
+                  #composerEditor
+                  class="composer-editor"
+                  contenteditable="true"
+                  data-placeholder="Redige ton email ici..."
+                  (input)="handleComposerInput($event)"
+                ></div>
+              } @else {
+                <textarea
+                  class="composer-html"
+                  [value]="emailComposerHtml()"
+                  placeholder="Colle ici ton code HTML complet pour le body du mail..."
+                  (input)="handleComposerHtmlInput($event)"
+                ></textarea>
+              }
+            </div>
+
+            <p class="field-helper">
+              Placeholders utiles:
+              <code>{{ '{{recipientName}}' }}</code>,
+              <code>{{ '{{companyName}}' }}</code>,
+              <code>{{ '{{businessName}}' }}</code>,
+              <code>{{ '{{email}}' }}</code>,
+              <code>{{ '{{website}}' }}</code>.
+              Tu peux travailler en mode visuel ou coller directement du HTML avec des balises
+              <code>&lt;img&gt;</code>.
+            </p>
+          </div>
+
+          <div class="action-row field--full">
+            <button type="submit" [disabled]="emailCampaignLoading()">
+              {{
+                emailCampaignLoading()
+                  ? 'Envoi de la campagne...'
+                  : 'Envoyer la campagne email'
+              }}
+            </button>
+            <button
+              type="button"
+              class="ghost-button"
+              (click)="closeEmailCampaignModal()"
+              [disabled]="emailCampaignLoading()"
+            >
+              Fermer
+            </button>
+          </div>
+
+          @if (emailCampaignError()) {
+            <pre class="status-box status-box--error">{{ emailCampaignError() }}</pre>
+          }
+
+          @if (emailCampaignResult()) {
+            <div class="status-box status-box--success">
+              <strong>{{ emailCampaignResult()!.sentCount }} emails envoyes</strong>
+              <p>
+                {{ emailCampaignResult()!.requestedCount }} destinataires demandes,
+                {{ emailCampaignResult()!.failedCount }} erreurs.
+              </p>
+
+              @if (emailCampaignResult()!.failures.length) {
+                <div class="failure-list">
+                  @for (failure of emailCampaignResult()!.failures; track failure.emailAddress) {
+                    <div class="failure-item">
+                      <strong>{{ failure.emailAddress }}</strong>
+                      <span>{{ failure.errorMessage }}</span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </form>
+
+        <aside class="campaign-sidebar">
+          <article class="aside-card">
+            <span class="eyebrow eyebrow--mini">Cible</span>
+            <div class="aside-highlights">
+              <div class="aside-line">
+                <span>Emails disponibles</span>
+                <strong>{{ campaignRecipients().length }}</strong>
+              </div>
+              <div class="aside-line">
+                <span>Emails selectionnes</span>
+                <strong>{{ selectedCampaignRecipients().length }}</strong>
+              </div>
+              <div class="aside-line">
+                <span>Mode d envoi</span>
+                <strong>1 email par destinataire</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="aside-card">
+            <div class="recipient-toolbar">
+              <span class="eyebrow eyebrow--mini">Destinataires</span>
+              <div class="recipient-toolbar__actions">
+                <button type="button" class="mini-button mini-button--ghost" (click)="selectAllCampaignRecipients()">
+                  Tout cocher
+                </button>
+                <button type="button" class="mini-button mini-button--ghost" (click)="clearCampaignRecipients()">
+                  Tout vider
+                </button>
+                <button type="button" class="mini-button mini-button--ghost" (click)="addManualCampaignRecipient()">
+                  Ajouter un destinataire
+                </button>
+              </div>
+            </div>
+
+            <p class="field-helper">
+              La liste est chargee depuis les resultats. Tu peux modifier le nom, l email, retirer
+              une ligne ou ajouter une adresse manuelle en fin de liste. L envoi suit cet ordre.
+            </p>
+
+            <div class="recipient-list">
+              @if (!campaignRecipients().length) {
+                <div class="recipient-empty">
+                  Aucun email n a ete charge automatiquement. Ajoute un destinataire manuel pour
+                  preparer ton envoi.
+                </div>
+              }
+
+              @for (
+                recipient of campaignRecipients();
+                track trackCampaignRecipient($index, recipient);
+                let isFirst = $first;
+                let isLast = $last
+              ) {
+                <article class="recipient-card">
+                  <div class="recipient-card__top">
+                    <label class="recipient-card__toggle">
+                      <input
+                        type="checkbox"
+                        [checked]="isCampaignRecipientSelected(recipient.key)"
+                        (change)="toggleCampaignRecipient(recipient.key)"
+                      />
+                      <span class="recipient-order">{{ $index + 1 }}</span>
+                    </label>
+
+                    <div class="recipient-card__actions">
+                      <span class="recipient-badge" [attr.data-manual]="recipient.isManual">
+                        {{ recipient.isManual ? 'Manuel' : 'Resultat' }}
+                      </span>
+                      <button
+                        type="button"
+                        class="mini-button mini-button--ghost"
+                        (click)="moveCampaignRecipient(recipient.key, -1)"
+                        [disabled]="isFirst"
+                      >
+                        Monter
+                      </button>
+                      <button
+                        type="button"
+                        class="mini-button mini-button--ghost"
+                        (click)="moveCampaignRecipient(recipient.key, 1)"
+                        [disabled]="isLast"
+                      >
+                        Descendre
+                      </button>
+                      <button
+                        type="button"
+                        class="mini-button mini-button--ghost"
+                        (click)="removeCampaignRecipient(recipient.key)"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="recipient-card__fields">
+                    <div class="field">
+                      <label [for]="'recipient-name-' + recipient.key">Societe</label>
+                      <input
+                        [id]="'recipient-name-' + recipient.key"
+                        type="text"
+                        [value]="recipient.businessName"
+                        placeholder="Nom de la societe"
+                        (input)="updateCampaignRecipient(recipient.key, 'businessName', $any($event.target).value)"
+                      />
+                    </div>
+
+                    <div class="field">
+                      <label [for]="'recipient-email-' + recipient.key">Email</label>
+                      <input
+                        [id]="'recipient-email-' + recipient.key"
+                        type="email"
+                        [value]="recipient.emailAddress"
+                        placeholder="contact@societe.com"
+                        (input)="updateCampaignRecipient(recipient.key, 'emailAddress', $any($event.target).value)"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="recipient-card__meta">
+                    <small>{{ recipient.businessLabel }}</small>
+                    @if (recipient.websiteUri) {
+                      <small>{{ recipient.websiteUri }}</small>
+                    }
+                  </div>
+                </article>
+              }
+            </div>
+          </article>
+        </aside>
+      </div>
+    </div>
+  </section>
+}

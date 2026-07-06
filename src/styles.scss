@@ -1,6 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap');
+
 :root {
   color-scheme: dark;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
 }
 
 *,
@@ -21,27 +23,39 @@ body {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top, rgba(37, 99, 235, 0.2), transparent 34%),
-    radial-gradient(circle at 85% 18%, rgba(34, 197, 94, 0.14), transparent 24%),
-    linear-gradient(180deg, #071120 0%, #050913 100%);
+    radial-gradient(circle at top left, rgba(77, 231, 217, 0.12), transparent 24%),
+    radial-gradient(circle at 85% 10%, rgba(52, 211, 153, 0.1), transparent 22%),
+    radial-gradient(circle at 50% 100%, rgba(37, 99, 235, 0.16), transparent 34%),
+    linear-gradient(180deg, #06111f 0%, #040915 46%, #030712 100%);
   color: #e2e8f0;
 }
 
-body::before {
+body::before,
+body::after {
   content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
+}
+
+body::before {
   background-image:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.45), transparent 85%);
+    linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px);
+  background-size: 30px 30px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.42), transparent 88%);
+}
+
+body::after {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.04), transparent 18%),
+    radial-gradient(circle at 80% 35%, rgba(255, 255, 255, 0.03), transparent 16%);
 }
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
