@@ -6,6 +6,8 @@ export interface LeadSearchRequest {
   extractEmailsFromSites: boolean;
   useGeminiForEmailExtraction: boolean;
   maxResults: number;
+  countryCode?: string;
+  searchSessionId?: string;
 }
 
 export interface LeadSearchResponse {
@@ -84,8 +86,29 @@ export interface WebsiteProjectResponse {
   changeSummary?: string | null;
   prioritizedAssets: string[];
   updatedUtc: string;
+  placeId?: string | null;
+  createdByUserId?: string | null;
+  createdByDisplayName?: string | null;
 }
 
 export interface WebsiteProjectEditRequest {
   prompt: string;
+}
+
+export interface LeadSearchResponseSummary {
+  total: number;
+  existingResultsCount: number;
+  newResultsCount: number;
+  requestedNewResults: number;
+  withWebsiteCount: number;
+  withoutWebsiteCount: number;
+  emailCount: number;
+}
+
+export interface LeadStreamMessage {
+  type: 'summary' | 'lead' | 'done' | 'error';
+  summary?: LeadSearchResponseSummary | null;
+  lead?: LeadSearchResultItem | null;
+  errorMessage?: string | null;
+  leads?: LeadSearchResultItem[] | null;
 }

@@ -1,0 +1,64 @@
+<section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <button type="button" class="settings-backdrop" aria-label="Fermer" (click)="close()"></button>
+  <div class="settings-dialog">
+    <header>
+      <div class="settings-icon">S</div>
+      <div>
+        <span class="eyebrow">Securite et intelligence artificielle</span>
+        <h2 id="settings-title">Mon compte</h2>
+        <p>Gere ton mot de passe et ta configuration Google AI personnelle.</p>
+      </div>
+      <button type="button" class="close-button" (click)="close()">Fermer</button>
+    </header>
+
+    <div class="identity-card">
+      <span class="identity-avatar">{{ auth.currentUser()!.displayName.slice(0, 2).toUpperCase() }}</span>
+      <div>
+        <strong>{{ auth.currentUser()!.displayName }}</strong>
+        <small>{{ '@' + auth.currentUser()!.username }}</small>
+      </div>
+      <span class="territory">
+        @for (country of auth.currentUser()!.allowedCountries; track country.code) {
+          {{ country.code }}{{ $last ? '' : ' · ' }}
+        }
+      </span>
+    </div>
+
+    <section class="settings-section">
+      <div class="section-heading">
+        <span class="eyebrow">Acces</span>
+        <h3>Changer mon mot de passe</h3>
+      </div>
+    <form [formGroup]="passwordForm" (ngSubmit)="savePassword()">
+      <label>
+        Mot de passe actuel
+        <input type="password" formControlName="currentPassword" autocomplete="current-password" />
+      </label>
+      <label>
+        Nouveau mot de passe
+        <input type="password" formControlName="newPassword" autocomplete="new-password" />
+        <small>10 a 128 caracteres, avec majuscule, minuscule et chiffre.</small>
+      </label>
+      <label>
+        Confirmer le nouveau mot de passe
+        <input type="password" formControlName="confirmation" autocomplete="new-password" />
+      </label>
+
+      @if (error()) {
+        <div class="status status--error" role="alert">{{ error() }}</div>
+      }
+      @if (success()) {
+        <div class="status status--success" role="status">{{ success() }}</div>
+      }
+
+      <button type="submit" class="primary-button" [disabled]="loading()">
+        {{ loading() ? 'Modification...' : 'Changer mon mot de passe' }}
+      </button>
+    </form>
+    </section>
+
+    <section class="settings-section settings-section--ai">
+      <app-ai-settings />
+    </section>
+  </div>
+</section>

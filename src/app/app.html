@@ -1,3 +1,67 @@
+@if (!auth.ready() || !auth.currentUser() || auth.currentUser()!.mustChangePassword || !auth.currentUser()!.aiConfigured) {
+  <app-auth-panel />
+} @else {
+<div class="account-bar">
+  <div class="account-bar__identity">
+    <span class="account-avatar">{{ auth.currentUser()!.displayName.slice(0, 2).toUpperCase() }}</span>
+    <div>
+      <strong>{{ auth.currentUser()!.displayName }}</strong>
+      <small>{{ auth.currentUser()!.role === 'Admin' ? 'Administrateur' : 'Commercial' }}</small>
+    </div>
+  </div>
+  <div class="account-bar__territory">
+    <span>Territoires autorises</span>
+    <strong>
+      @for (country of auth.currentUser()!.allowedCountries; track country.code) {
+        {{ country.code }}{{ $last ? '' : ' · ' }}
+      }
+    </strong>
+  </div>
+  <div class="account-bar__actions">
+    <button
+      type="button"
+      class="account-button"
+      [class.account-button--active]="workspaceView() === 'prospection'"
+      (click)="openProspection()"
+    >
+      Prospection
+    </button>
+    @if (auth.currentUser()!.role === 'Admin') {
+      <button
+        type="button"
+        class="account-button"
+        [class.account-button--active]="workspaceView() === 'admin-commercials'"
+        (click)="openAdminUsers()"
+      >
+        Commerciaux
+      </button>
+      <button
+        type="button"
+        class="account-button"
+        [class.account-button--active]="workspaceView() === 'admin-sites'"
+        (click)="openAdminSites()"
+      >
+        Sites generes
+      </button>
+    }
+    <button type="button" class="account-button" (click)="openAccountSettings()">Mon compte</button>
+    <button type="button" class="account-button" (click)="logout()">Deconnexion</button>
+  </div>
+</div>
+
+@if (workspaceView() === 'admin-commercials' && auth.currentUser()!.role === 'Admin') {
+  @defer {
+    <app-admin-users (sitesRequested)="openAdminSites($event)" />
+  } @placeholder {
+    <div class="admin-loading-page">Chargement de la gestion des commerciaux...</div>
+  }
+} @else if (workspaceView() === 'admin-sites' && auth.currentUser()!.role === 'Admin') {
+  @defer {
+    <app-admin-websites [initialCommercialId]="adminCommercialFilter()" />
+  } @placeholder {
+    <div class="admin-loading-page">Chargement du portefeuille de sites...</div>
+  }
+} @else {
 <main class="shell">
   <section class="hero-panel" id="prospects">
     <nav class="topbar">
@@ -95,15 +159,27 @@
       <div class="search-layout">
         <form class="lead-form" [formGroup]="leadForm" (ngSubmit)="searchLeads()">
           <div class="field field--full">
+            <label for="countryCode">Pays de cette recherche</label>
+            <select id="countryCode" formControlName="countryCode">
+              @for (country of auth.currentUser()!.allowedCountries; track country.code) {
+                <option [value]="country.code">{{ country.name }} ({{ country.code }})</option>
+              }
+            </select>
+            <p class="field-helper">
+              Tu peux rechercher uniquement dans les pays attribues par l administrateur.
+            </p>
+          </div>
+          <div class="field field--full">
             <label for="locationQuery">Ville ou adresse</label>
             <input
               id="locationQuery"
               type="text"
               formControlName="locationQuery"
-              placeholder="Paris 11e, Lyon Part-Dieu, 10 rue de Rivoli..."
+              [placeholder]="'Ville ou adresse en ' + (activeSearchCountry()?.name || 'territoire autorise')"
             />
             <p class="field-helper">
-              Exemples: une ville, un quartier, une rue ou une zone commerciale.
+              Pays selectionne: <strong>{{ activeSearchCountry()?.name }}</strong>. Saisis une
+              ville, un quartier, une rue ou une zone commerciale dans ce pays.
             </p>
             @if (
               leadForm.controls.locationQuery.invalid && leadForm.controls.locationQuery.touched
@@ -124,13 +200,13 @@
           </div>
 
           <div class="field">
-            <label for="maxResults">Nouveaux resultats a chercher</label>
+            <label for="maxResults">Nouveaux resultats a chercher (Max 5000)</label>
             <input
               id="maxResults"
               type="number"
               formControlName="maxResults"
               min="1"
-              max="100"
+              max="5000"
               step="1"
               placeholder="10"
             />
@@ -140,26 +216,24 @@
             </p>
             @if (leadForm.controls.maxResults.invalid && leadForm.controls.maxResults.touched) {
               <p class="field-feedback">
-                Saisis un nombre entre 1 et 100 pour le nombre maximum de nouvelles fiches.
+                Saisis un nombre entre 1 et 5000 pour le nombre maximum de nouvelles fiches.
               </p>
             }
           </div>
 
-          <div class="toggle-grid field--full">
-            <label class="toggle">
-              <input
-                type="checkbox"
-                formControlName="onlyWithoutWebsite"
-                (change)="syncLeadToggles()"
-              />
-              <span>
-                <strong>Cibler uniquement les commerces sans site web</strong>
-                <small>
-                  Ideal pour une offre de creation de site, de refonte ou de presence digitale.
-                </small>
-              </span>
-            </label>
+          <div class="field field--full">
+            <label for="websiteFilter">Filtre des sites web</label>
+            <select id="websiteFilter" formControlName="websiteFilter" (change)="syncLeadToggles()">
+              <option value="all">Tous les commerces (avec ou sans site web)</option>
+              <option value="with_website">Cibler uniquement les commerces avec un site web officiel</option>
+              <option value="without_website">Cibler uniquement les commerces sans site web</option>
+            </select>
+            <p class="field-helper">
+              Permet de filtrer en amont la presence ou l absence d un site pour votre prospection.
+            </p>
+          </div>
 
+          <div class="toggle-grid field--full">
             <label class="toggle">
               <input
                 type="checkbox"
@@ -186,10 +260,29 @@
             </label>
           </div>
 
+          <div class="search-runner field--full" [attr.data-state]="leadSearchState()">
+            <span class="search-runner__indicator"></span>
+            <div>
+              <strong>{{ searchStateTitle() }}</strong>
+              <p>{{ searchStateDescription() }}</p>
+            </div>
+            @if (leadLoading()) {
+              <span class="search-runner__live">EN DIRECT</span>
+            }
+          </div>
+
           <div class="action-row field--full">
-            <button type="submit" [disabled]="leadLoading()">
-              {{ leadLoading() ? 'Recherche en cours...' : 'Lancer la prospection' }}
-            </button>
+            @if (leadLoading()) {
+              <button type="button" class="stop-search-button" (click)="stopSearch()">
+                Arreter la recherche
+              </button>
+            } @else {
+              <button type="submit">
+                {{ leadSearchState() === 'stopped' || leadSearchState() === 'error'
+                  ? 'Continuer avec ces criteres'
+                  : 'Lancer la prospection' }}
+              </button>
+            }
             <button
               type="button"
               class="ghost-button"
@@ -199,6 +292,19 @@
               Reinitialiser
             </button>
           </div>
+
+          @if (leadError()) {
+            <div class="search-error-card field--full" role="alert">
+              <span class="search-error-card__icon">!</span>
+              <div>
+                <strong>{{ leadError() }}</strong>
+                <p>{{ leadErrorHint() }}</p>
+              </div>
+              <button type="button" aria-label="Masquer l erreur" (click)="dismissLeadError()">
+                Fermer
+              </button>
+            </div>
+          }
         </form>
 
         <aside class="search-aside">
@@ -225,9 +331,6 @@
         </aside>
       </div>
 
-      @if (leadError()) {
-        <pre class="status-box status-box--error">{{ leadError() }}</pre>
-      }
     </section>
 
     <aside class="panel panel--playbook">
@@ -281,10 +384,26 @@
             <button
               type="button"
               class="ghost-button results-export"
-              (click)="downloadResultsCsv()"
+              (click)="downloadResultsCsv('full')"
               [disabled]="!leadItems().length"
             >
-              Telecharger le CSV
+              Telecharger le CSV Complet
+            </button>
+            <button
+              type="button"
+              class="ghost-button results-export"
+              (click)="downloadResultsCsv('addresses')"
+              [disabled]="!leadItems().length"
+            >
+              CSV Adresses
+            </button>
+            <button
+              type="button"
+              class="ghost-button results-export"
+              (click)="downloadResultsCsv('phones')"
+              [disabled]="!leadItems().length"
+            >
+              CSV Telephones
             </button>
           </div>
         </div>
@@ -383,7 +502,7 @@
                 }
                 @if (item.googleMapsUri) {
                   <a [href]="item.googleMapsUri" target="_blank" rel="noopener">
-                    Ouvrir la fiche carte
+                    Position Google Maps
                   </a>
                 }
               </div>
@@ -453,6 +572,9 @@
                     }
 
                     <div class="website-project-summary__meta">
+                      <span>
+                        Createur: {{ latestProject.createdByDisplayName || 'utilisateur historique' }}
+                      </span>
                       <span>Modele: {{ latestProject.modelUsed }}</span>
                       <span>Maj: {{ formatWebsiteProjectDate(latestProject.updatedUtc) }}</span>
                     </div>
@@ -915,6 +1037,9 @@
                   >
                     <span>{{ project.templateName }}</span>
                     <strong>{{ project.designConcept }}</strong>
+                    <small>
+                      Cree par {{ project.createdByDisplayName || 'utilisateur historique' }}
+                    </small>
                     <small>{{ formatWebsiteProjectDate(project.updatedUtc) }}</small>
                   </button>
                 }
@@ -1298,4 +1423,10 @@
       </div>
     </div>
   </section>
+}
+
+}
+@if (accountSettingsOpen()) {
+  <app-account-settings (closed)="closeAccountSettings()" />
+}
 }

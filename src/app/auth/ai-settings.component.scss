@@ -1,0 +1,44 @@
+:host { display: block; }
+.ai-setup { color: #edf4ff; }
+.ai-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(300px, .85fr); gap: 18px; }
+.ai-config-column, .ai-guide { padding: 20px; border: 1px solid rgba(135, 166, 220, .16); border-radius: 20px; background: rgba(6, 17, 35, .62); }
+.ai-heading { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 13px; margin-bottom: 18px; }
+.ai-icon { display: grid; width: 44px; height: 44px; place-items: center; border-radius: 14px; font-size: 1.1rem; font-weight: 900; background: linear-gradient(135deg, #4285f4, #a855f7 55%, #34a853); }
+.eyebrow { color: #71dfca; font-size: .68rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+h3, p { margin: 0; }
+.ai-heading h3, .ai-guide h3 { margin: 5px 0 7px; font-size: 1.25rem; }
+.ai-heading p { color: #91a4c0; font-size: .82rem; line-height: 1.55; }
+.configured-key { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 15px; padding: 12px 14px; border: 1px solid rgba(61, 209, 166, .2); border-radius: 13px; background: rgba(20, 116, 86, .16); }
+.configured-key div { display: grid; gap: 3px; }
+.configured-key span { color: #88a39c; font-size: .7rem; }
+.configured-key strong { font-family: ui-monospace, monospace; letter-spacing: .08em; }
+.secure-badge { padding: 6px 8px; border-radius: 8px; color: #bdf7de !important; font-weight: 800; background: rgba(28, 148, 104, .2); }
+form { display: grid; gap: 13px; }
+label { display: grid; gap: 7px; }
+label > span { font-size: .78rem; font-weight: 750; }
+label small { color: #7f93af; font-size: .7rem; }
+input, select { width: 100%; min-height: 44px; border: 1px solid rgba(139, 168, 220, .2); border-radius: 11px; padding: 0 12px; color: #f4f8ff; background: rgba(2, 10, 22, .72); outline: none; }
+select option { color: #111827; background: white; }
+input:focus, select:focus { border-color: rgba(90, 150, 255, .62); box-shadow: 0 0 0 3px rgba(66, 133, 244, .11); }
+.key-input { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+.key-input input { border-radius: 11px 0 0 11px; }
+.key-input button { border: 1px solid rgba(139, 168, 220, .2); border-left: 0; border-radius: 0 11px 11px 0; padding: 0 12px; color: #a9bce0; font-size: .7rem; font-weight: 750; background: rgba(42, 70, 116, .3); cursor: pointer; }
+.model-note, .quota-note { display: grid; gap: 4px; padding: 11px 12px; border-radius: 11px; color: #94a7c3; font-size: .73rem; line-height: 1.45; background: rgba(37, 66, 109, .18); }
+.model-note strong { color: #dce8fb; }
+.quota-note { border: 1px solid rgba(238, 178, 74, .16); color: #bcae91; background: rgba(114, 73, 16, .13); }
+.quota-note strong { color: #f0d29a; }
+.save-ai-button { min-height: 46px; border: 0; border-radius: 12px; color: white; font-weight: 850; cursor: pointer; background: linear-gradient(135deg, #2978e8, #7252d8); }
+.save-ai-button:disabled { opacity: .55; cursor: wait; }
+.status { padding: 11px; border-radius: 10px; font-size: .78rem; line-height: 1.45; }
+.status--error { color: #ffd1d9; background: rgba(135, 28, 50, .3); }
+.status--success { color: #c7f9e1; background: rgba(19, 113, 77, .28); }
+.ai-guide { display: grid; align-content: start; gap: 14px; }
+.ai-guide video { width: 100%; aspect-ratio: 16 / 9; border: 1px solid rgba(135, 166, 220, .16); border-radius: 14px; background: #020817; object-fit: cover; }
+.ai-guide ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ai-guide li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 9px; align-items: center; }
+.ai-guide li > span { display: grid; width: 26px; height: 26px; place-items: center; border-radius: 9px; color: #dceaff; font-size: .7rem; font-weight: 850; background: rgba(58, 115, 220, .3); }
+.ai-guide li p { color: #93a6c2; font-size: .76rem; line-height: 1.45; }
+.ai-guide > a { display: grid; min-height: 43px; place-items: center; border: 1px solid rgba(65, 209, 166, .23); border-radius: 11px; color: #d5fff2; font-size: .78rem; font-weight: 800; text-decoration: none; background: rgba(21, 134, 99, .2); }
+.ai-loading { padding: 30px; color: #8fa3c0; text-align: center; }
+.ai-setup--onboarding .ai-config-column, .ai-setup--onboarding .ai-guide { background: rgba(7, 18, 38, .82); }
+@media (max-width: 850px) { .ai-layout { grid-template-columns: 1fr; } }

@@ -1,0 +1,103 @@
+<section class="ai-setup" [class.ai-setup--onboarding]="onboarding()">
+  @if (loading()) {
+    <div class="ai-loading">Chargement de la configuration Google AI...</div>
+  } @else {
+    <div class="ai-layout">
+      <div class="ai-config-column">
+        <div class="ai-heading">
+          <span class="ai-icon">G</span>
+          <div>
+            <span class="eyebrow">Google AI Studio · configuration personnelle</span>
+            <h3>{{ onboarding() ? 'Connecte ton IA avant de commencer' : 'Ton moteur IA' }}</h3>
+            <p>
+              Chaque requete IA utilise ta propre cle et tes propres quotas Google. La cle est
+              chiffree côté serveur et n est jamais affichee apres l enregistrement.
+            </p>
+          </div>
+        </div>
+
+        @if (settings()?.configured) {
+          <div class="configured-key">
+            <div>
+              <span>Cle actuellement enregistree</span>
+              <strong>{{ settings()?.maskedApiKey }}</strong>
+            </div>
+            <span class="secure-badge">Configuree</span>
+          </div>
+        }
+
+        <form [formGroup]="aiForm" (ngSubmit)="save()">
+          <label>
+            <span>{{ settings()?.configured ? 'Nouvelle cle API (facultatif)' : 'Cle API Google AI Studio' }}</span>
+            <div class="key-input">
+              <input
+                [type]="showApiKey() ? 'text' : 'password'"
+                formControlName="apiKey"
+                autocomplete="off"
+                spellcheck="false"
+                [placeholder]="settings()?.configured ? 'Laisse vide pour conserver la cle actuelle' : 'AIza...'"
+              />
+              <button type="button" (click)="toggleKeyVisibility()">
+                {{ showApiKey() ? 'Masquer' : 'Afficher' }}
+              </button>
+            </div>
+            <small>Ne partage jamais cette cle par email ou messagerie.</small>
+          </label>
+
+          <label>
+            <span>Modele Google</span>
+            <select formControlName="model">
+              @for (model of settings()?.availableModels ?? []; track model.id) {
+                <option [value]="model.id">{{ model.name }}</option>
+              }
+            </select>
+          </label>
+
+          @for (model of settings()?.availableModels ?? []; track model.id) {
+            @if (model.id === aiForm.controls.model.value) {
+              <div class="model-note">
+                <strong>{{ model.name }}</strong>
+                <span>{{ model.description }}</span>
+              </div>
+            }
+          }
+
+          <div class="quota-note">
+            <strong>Offre gratuite Google</strong>
+            <span>Gemma et Gemini peuvent avoir un quota gratuit. Les limites et la disponibilite sont gerees par Google et peuvent evoluer.</span>
+          </div>
+
+          @if (error()) {
+            <div class="status status--error" role="alert">{{ error() }}</div>
+          }
+          @if (success()) {
+            <div class="status status--success" role="status">{{ success() }}</div>
+          }
+
+          <button type="submit" class="save-ai-button" [disabled]="saving()">
+            {{ saving() ? 'Verification avec Google...' : settings()?.configured ? 'Verifier et enregistrer' : 'Activer mon IA' }}
+          </button>
+        </form>
+      </div>
+
+      <aside class="ai-guide">
+        <div>
+          <span class="eyebrow">Tutoriel rapide</span>
+          <h3>Creer ta cle en 3 etapes</h3>
+        </div>
+        <video controls preload="metadata" poster="assets/google-ai-key-guide-poster.svg">
+          <source src="assets/google-ai-key-guide.mp4" type="video/mp4" />
+          Ton navigateur ne peut pas lire la video.
+        </video>
+        <ol>
+          <li><span>1</span><p>Ouvre Google AI Studio avec ton compte Google.</p></li>
+          <li><span>2</span><p>Clique sur « Get API key », puis « Create API key ».</p></li>
+          <li><span>3</span><p>Copie la cle, colle-la ici et choisis Gemma.</p></li>
+        </ol>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">
+          Ouvrir Google AI Studio
+        </a>
+      </aside>
+    </div>
+  }
+</section>

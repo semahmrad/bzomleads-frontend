@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08162a"/><stop offset="1" stop-color="#0d3150"/></linearGradient>
+    <linearGradient id="play" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#4285f4"/><stop offset=".55" stop-color="#a855f7"/><stop offset="1" stop-color="#34a853"/></linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <circle cx="1090" cy="75" r="300" fill="#2563eb" opacity=".14"/>
+  <circle cx="120" cy="700" r="280" fill="#10b981" opacity=".12"/>
+  <rect x="55" y="50" width="1170" height="620" rx="32" fill="#08172a" stroke="#28496e" stroke-width="2"/>
+  <text x="105" y="170" fill="#71dfca" font-family="Segoe UI, sans-serif" font-size="22" font-weight="700" letter-spacing="3">TUTORIEL GOOGLE AI STUDIO</text>
+  <text x="105" y="250" fill="#f5f8ff" font-family="Segoe UI, sans-serif" font-size="58" font-weight="700">Créer ta clé API gratuite</text>
+  <text x="105" y="310" fill="#9eb1cb" font-family="Segoe UI, sans-serif" font-size="28">3 étapes simples · Google AI Studio · Gemma</text>
+  <circle cx="640" cy="475" r="88" fill="url(#play)"/>
+  <path d="M620 430l75 45-75 45z" fill="#fff"/>
+</svg>

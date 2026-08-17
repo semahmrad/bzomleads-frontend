@@ -1,0 +1,96 @@
+<main class="auth-shell">
+  <section class="auth-card">
+    <div class="auth-brand">
+      <span class="auth-logo">LR</span>
+      <div>
+        <strong>Lead Radar</strong>
+        <small>Workspace commercial securise</small>
+      </div>
+    </div>
+
+    @if (!auth.ready()) {
+      <div class="auth-loading">Verification de la session...</div>
+    } @else if (auth.currentUser()?.mustChangePassword) {
+      <div class="auth-heading">
+        <span class="auth-eyebrow">Premiere connexion</span>
+        <h1>Choisis ton mot de passe personnel.</h1>
+        <p>
+          Bonjour {{ auth.currentUser()!.displayName }}. Le mot de passe temporaire doit etre
+          remplace avant d acceder aux donnees commerciales.
+        </p>
+      </div>
+
+      <form [formGroup]="passwordForm" (ngSubmit)="submitPasswordChange()">
+        <label>
+          Mot de passe temporaire
+          <input type="password" formControlName="currentPassword" autocomplete="current-password" />
+        </label>
+        <label>
+          Nouveau mot de passe
+          <input type="password" formControlName="newPassword" autocomplete="new-password" />
+          <small>10 caracteres minimum, avec majuscule, minuscule et chiffre.</small>
+        </label>
+        <label>
+          Confirmer le nouveau mot de passe
+          <input type="password" formControlName="confirmation" autocomplete="new-password" />
+        </label>
+        <button type="submit" [disabled]="loading()">
+          {{ loading() ? 'Mise a jour...' : 'Activer mon compte' }}
+        </button>
+      </form>
+    } @else if (!auth.currentUser()?.aiConfigured) {
+      <div class="auth-heading">
+        <span class="auth-eyebrow">Derniere etape</span>
+        <h1>Configure ton IA Google personnelle.</h1>
+        <p>
+          Utilise ta propre cle Google AI Studio. Elle sera verifiee puis chiffree avant
+          d ouvrir ton espace.
+        </p>
+      </div>
+      <app-ai-settings [onboarding]="true" />
+    } @else {
+      <div class="auth-heading">
+        <span class="auth-eyebrow">Connexion SaaS</span>
+        <h1>Retrouve ton espace de prospection.</h1>
+        <p>Chaque commercial accede uniquement aux pays attribues par l administrateur.</p>
+      </div>
+
+      <form [formGroup]="loginForm" (ngSubmit)="submitLogin()">
+        <label>
+          Nom d utilisateur
+          <input type="text" formControlName="username" autocomplete="username" autofocus />
+        </label>
+        <label>
+          Mot de passe
+          <input type="password" formControlName="password" autocomplete="current-password" />
+        </label>
+        <button type="submit" [disabled]="loading()">
+          {{ loading() ? 'Connexion...' : 'Se connecter' }}
+        </button>
+      </form>
+    }
+
+    @if (error()) {
+      <div class="auth-error">{{ error() }}</div>
+    }
+  </section>
+
+  <aside class="auth-story">
+    <span class="auth-eyebrow">Pilotage commercial</span>
+    <h2>Une equipe, des territoires clairs, une activite mesurable.</h2>
+    <div class="auth-points">
+      <article>
+        <strong>Pays verrouille</strong>
+        <p>La restriction est controlee par le serveur sur chaque recherche.</p>
+      </article>
+      <article>
+        <strong>Sites attribues</strong>
+        <p>Chaque projet genere reste lie au commercial qui l a cree.</p>
+      </article>
+      <article>
+        <strong>Suivi admin</strong>
+        <p>Recherches, leads, campagnes et creations de sites sont consolides.</p>
+      </article>
+    </div>
+  </aside>
+</main>

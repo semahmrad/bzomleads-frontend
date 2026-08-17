@@ -3,14 +3,16 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  HostListener,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { firstValueFrom, startWith } from 'rxjs';
+import { Subscription, firstValueFrom, startWith } from 'rxjs';
 import {
   EmailCampaignSendRequest,
   EmailCampaignSendResponse,
@@ -18,11 +20,17 @@ import {
 import {
   LeadSearchResponse,
   LeadSearchResultItem,
+  LeadStreamMessage,
   WebsiteGenerationRequest,
   WebsiteProjectResponse,
 } from './models/lead-search.models';
 import { EmailCampaignApiService } from './services/email-campaign-api.service';
 import { LeadFinderApiService } from './services/lead-finder-api.service';
+import { AdminUsersComponent } from './auth/admin-users.component';
+import { AdminWebsitesComponent } from './auth/admin-websites.component';
+import { AccountSettingsComponent } from './auth/account-settings.component';
+import { AuthPanelComponent } from './auth/auth-panel.component';
+import { AuthService } from './auth/auth.service';
 
 type BusinessTypeOption = {
   value: string;
@@ -58,10 +66,18 @@ type WebsiteGenerationNotice = {
 };
 
 type WebsiteStudioMode = 'generate' | 'edit';
+type LeadSearchState = 'idle' | 'running' | 'stopped' | 'completed' | 'error';
+type AppWorkspaceView = 'prospection' | 'admin-commercials' | 'admin-sites';
 
 @Component({
   selector: 'app-root',
-  imports: [ReactiveFormsModule],
+  imports: [
+    ReactiveFormsModule,
+    AuthPanelComponent,
+    AccountSettingsComponent,
+    AdminUsersComponent,
+    AdminWebsitesComponent,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -70,8 +86,10 @@ export class App {
   private readonly formBuilder = inject(FormBuilder);
   private readonly leadFinderApi = inject(LeadFinderApiService);
   private readonly emailCampaignApi = inject(EmailCampaignApiService);
+  protected readonly auth = inject(AuthService);
   private copyResetHandle?: ReturnType<typeof setTimeout>;
   private campaignRecipientSequence = 0;
+  private loadedProjectUserId: string | null = null;
   private readonly projectDateFormatter = new Intl.DateTimeFormat('fr-FR', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -111,13 +129,29 @@ export class App {
       label: 'Salon beaute',
       hint: 'Coiffure, soins et activites bien-etre.',
     },
+    {
+      value: 'car_repair',
+      label: 'Garage / Mécanicien',
+      hint: 'Garages, carrosseries et ateliers de réparation automobile.',
+    },
+    {
+      value: 'medical_office',
+      label: 'Cabinet médical / Dentiste',
+      hint: 'Cabinets de médecins, dentistes, professions de santé et cliniques.',
+    },
+    {
+      value: 'hotel',
+      label: 'Hôtel / Hébergement',
+      hint: 'Hôtels, auberges, chambres d\'hôtes et hébergements touristiques.',
+    },
   ];
 
   protected readonly leadForm = this.formBuilder.nonNullable.group({
+    countryCode: ['', [Validators.required]],
     locationQuery: ['', [Validators.required]],
     businessType: ['restaurant', [Validators.required]],
-    maxResults: [10, [Validators.required, Validators.min(1), Validators.max(100)]],
-    onlyWithoutWebsite: [false],
+    maxResults: [10, [Validators.required, Validators.min(1), Validators.max(5000)]],
+    websiteFilter: ['all'],
     extractEmailsFromSites: [true],
     useGeminiForEmailExtraction: [true],
   });
@@ -140,6 +174,8 @@ export class App {
 
   protected readonly leadLoading = signal(false);
   protected readonly leadError = signal('');
+  protected readonly leadErrorHint = signal('');
+  protected readonly leadSearchState = signal<LeadSearchState>('idle');
   protected readonly leadResponse = signal<LeadSearchResponse | null>(null);
   protected readonly copiedPlaceId = signal<string | null>(null);
   protected readonly websiteProjectBusyPlaceId = signal<string | null>(null);
@@ -153,6 +189,9 @@ export class App {
   protected readonly websiteStudioLogoFile = signal<File | null>(null);
   protected readonly websiteStudioImageFiles = signal<File[]>([]);
   protected readonly websiteStudioEditPrompt = signal('');
+  protected readonly workspaceView = signal<AppWorkspaceView>(this.workspaceFromLocation());
+  protected readonly adminCommercialFilter = signal(this.commercialFilterFromLocation());
+  protected readonly accountSettingsOpen = signal(false);
 
   protected readonly emailCampaignOpen = signal(false);
   protected readonly emailCampaignLoading = signal(false);
@@ -163,12 +202,47 @@ export class App {
   protected readonly campaignRecipients = signal<CampaignRecipientOption[]>([]);
 
   protected readonly leadItems = computed(() => this.leadResponse()?.items ?? []);
+  protected readonly searchStateTitle = computed(() => {
+    switch (this.leadSearchState()) {
+      case 'running':
+        return `Recherche en cours · ${this.leadItems().length} resultat(s) recu(s)`;
+      case 'stopped':
+        return 'Recherche arretee · resultats conserves';
+      case 'completed':
+        return `Recherche terminee · ${this.leadItems().length} resultat(s)`;
+      case 'error':
+        return 'La recherche a rencontre un probleme';
+      default:
+        return 'Pret a lancer une recherche';
+    }
+  });
+  protected readonly searchStateDescription = computed(() => {
+    switch (this.leadSearchState()) {
+      case 'running':
+        return 'Les prospects arrivent progressivement. Arrete la recherche avant de modifier les criteres.';
+      case 'stopped':
+        return 'Tu peux modifier la ville, le type, les filtres ou la quantite puis continuer.';
+      case 'completed':
+        return 'Les resultats sont enregistres. Une nouvelle recherche reprendra depuis les donnees deja collectees.';
+      case 'error':
+        return 'Corrige le point indique ci-dessous puis relance sans perdre les prospects deja enregistres.';
+      default:
+        return 'Configure tes criteres puis lance la collecte.';
+    }
+  });
   protected readonly activeBusinessType = computed(
     () =>
       this.businessTypeOptions.find(
         (option) => option.value === (this.leadFormState().businessType ?? 'restaurant'),
       ) ?? this.businessTypeOptions[0],
   );
+  protected readonly activeSearchCountry = computed(() => {
+    const user = this.auth.currentUser();
+    const selectedCode = this.leadFormState().countryCode;
+    return user?.allowedCountries.find((country) => country.code === selectedCode)
+      ?? user?.allowedCountries[0]
+      ?? null;
+  });
   protected readonly websiteStudioProjects = computed(() => {
     const item = this.websiteStudioItem();
     return item ? this.websiteProjectsForPlace(item.placeId) : [];
@@ -252,10 +326,13 @@ export class App {
   protected readonly workspaceHighlights = computed<WorkspaceHighlight[]>(() => {
     const values = this.leadFormState();
     const location = (values.locationQuery ?? '').trim() || 'Zone a definir';
-    const targeting = values.onlyWithoutWebsite
+    const isWithoutWebsiteOnly = values.websiteFilter === 'without_website';
+    const targeting = values.websiteFilter === 'without_website'
       ? 'Sans site web uniquement'
-      : 'Tous les commerces';
-    const enrichment = values.onlyWithoutWebsite
+      : values.websiteFilter === 'with_website'
+        ? 'Avec site web uniquement'
+        : 'Tous les commerces';
+    const enrichment = isWithoutWebsiteOnly
       ? 'Ciblage sans site web'
       : values.extractEmailsFromSites
         ? values.useGeminiForEmailExtraction
@@ -396,10 +473,87 @@ export class App {
 
   constructor() {
     this.syncLeadToggles();
+    void this.auth.initialize();
+    effect(() => {
+      const user = this.auth.currentUser();
+      if (user && user.role !== 'Admin' && this.workspaceView() !== 'prospection') {
+        this.navigateWorkspace('prospection', undefined, true);
+      }
+
+      if (user && !user.mustChangePassword) {
+        const allowedCodes = user.allowedCountries.map((country) => country.code);
+        if (!allowedCodes.includes(this.leadForm.controls.countryCode.value)) {
+          this.leadForm.controls.countryCode.setValue(allowedCodes[0] ?? user.countryCode);
+        }
+      }
+
+      if (
+        !user ||
+        user.mustChangePassword ||
+        this.workspaceView() !== 'prospection' ||
+        this.loadedProjectUserId === user.id
+      ) {
+        return;
+      }
+
+      this.loadedProjectUserId = user.id;
+      void this.loadOwnedWebsiteProjects();
+    });
   }
 
+  protected openAdminUsers(): void {
+    if (this.auth.currentUser()?.role === 'Admin') {
+      this.navigateWorkspace('admin-commercials');
+    }
+  }
+
+  protected openAdminSites(commercialId?: string): void {
+    if (this.auth.currentUser()?.role === 'Admin') {
+      this.navigateWorkspace('admin-sites', commercialId);
+    }
+  }
+
+  protected openProspection(): void {
+    this.navigateWorkspace('prospection');
+  }
+
+  protected openAccountSettings(): void {
+    this.accountSettingsOpen.set(true);
+  }
+
+  protected closeAccountSettings(): void {
+    this.accountSettingsOpen.set(false);
+  }
+
+  protected async logout(): Promise<void> {
+    if (this.leadLoading()) {
+      this.stopSearch();
+    } else {
+      this.searchSubscription?.unsubscribe();
+    }
+    this.closeAccountSettings();
+    this.closeEmailCampaignModal();
+    this.closeWebsiteStudio();
+    this.leadResponse.set(null);
+    this.websiteProjects.set({});
+    this.loadedProjectUserId = null;
+    this.navigateWorkspace('prospection', undefined, true);
+    await this.auth.logout();
+  }
+
+  @HostListener('window:popstate')
+  protected handleBrowserNavigation(): void {
+    this.workspaceView.set(this.workspaceFromLocation());
+    this.adminCommercialFilter.set(this.commercialFilterFromLocation());
+  }
+
+  private searchSubscription: Subscription | null = null;
+  private activeSearchSessionId: string | null = null;
+
   protected async searchLeads(): Promise<void> {
+    this.searchSubscription?.unsubscribe();
     this.leadError.set('');
+    this.leadErrorHint.set('');
     this.leadResponse.set(null);
     this.copiedPlaceId.set(null);
     this.campaignRecipients.set([]);
@@ -412,43 +566,160 @@ export class App {
 
     if (this.leadForm.invalid) {
       this.leadForm.markAllAsTouched();
+      this.leadSearchState.set('error');
+      this.leadError.set('Certains criteres de recherche sont incomplets ou invalides.');
+      this.leadErrorHint.set('Verifie surtout la ville et le nombre maximum de resultats.');
       return;
     }
 
     const values = this.leadForm.getRawValue();
-    const onlyWithoutWebsite = values.onlyWithoutWebsite;
-    const extractEmailsFromSites = onlyWithoutWebsite ? false : values.extractEmailsFromSites;
+    const websiteFilter = values.websiteFilter;
+    const extractEmailsFromSites = websiteFilter === 'without_website' ? false : values.extractEmailsFromSites;
     const useGemini = extractEmailsFromSites && values.useGeminiForEmailExtraction;
+    const searchSessionId = crypto.randomUUID();
+    this.activeSearchSessionId = searchSessionId;
+
+    let currentResponse: LeadSearchResponse = {
+      provider: 'open_data',
+      query: values.locationQuery.trim(),
+      businessType: values.businessType,
+      websiteFilter: websiteFilter,
+      extractEmailsFromSites,
+      total: 0,
+      existingResultsCount: 0,
+      newResultsCount: 0,
+      requestedNewResults: values.maxResults,
+      withWebsiteCount: 0,
+      withoutWebsiteCount: 0,
+      emailCount: 0,
+      items: []
+    };
 
     try {
       this.leadLoading.set(true);
+      this.leadSearchState.set('running');
 
-      const response = await firstValueFrom(
-        this.leadFinderApi.searchLeads({
+      this.searchSubscription = this.leadFinderApi
+        .searchLeadsStream({
           provider: 'open_data',
+          countryCode: values.countryCode,
           locationQuery: values.locationQuery.trim(),
           businessType: values.businessType,
-          websiteFilter: onlyWithoutWebsite ? 'without_website' : 'all',
+          websiteFilter,
           extractEmailsFromSites,
           useGeminiForEmailExtraction: useGemini,
           maxResults: values.maxResults,
-        }),
-      );
+          searchSessionId,
+        })
+        .subscribe({
+          next: (message: LeadStreamMessage) => {
+            if (message.type === 'summary' && message.summary) {
+              currentResponse = {
+                ...currentResponse,
+                total: message.summary.total,
+                existingResultsCount: message.summary.existingResultsCount,
+                newResultsCount: message.summary.newResultsCount,
+                withWebsiteCount: message.summary.withWebsiteCount,
+                withoutWebsiteCount: message.summary.withoutWebsiteCount,
+                emailCount: message.summary.emailCount,
+              };
+              this.leadResponse.set({ ...currentResponse });
+            } else if (message.type === 'lead' && message.lead) {
+              const lead = message.lead;
+              const items = [...currentResponse.items];
+              const duplicateIndex = items.findIndex((i) => i.placeId === lead.placeId);
 
-      this.leadResponse.set(response);
+              if (duplicateIndex >= 0) {
+                items[duplicateIndex] = lead;
+              } else {
+                items.push(lead);
+              }
+
+              const withWebsiteCount = items.filter(item => item.hasWebsite).length;
+              const withoutWebsiteCount = items.length - withWebsiteCount;
+              const emailCount = items.reduce((acc, item) => acc + (item.emailAddresses?.length ?? 0), 0);
+
+              currentResponse = {
+                ...currentResponse,
+                items,
+                withWebsiteCount,
+                withoutWebsiteCount,
+                emailCount,
+                total: items.length
+              };
+              this.leadResponse.set({ ...currentResponse });
+            } else if (message.type === 'done' && message.summary) {
+              currentResponse = {
+                ...currentResponse,
+                total: message.summary.total,
+                existingResultsCount: message.summary.existingResultsCount,
+                newResultsCount: message.summary.newResultsCount,
+                withWebsiteCount: message.summary.withWebsiteCount,
+                withoutWebsiteCount: message.summary.withoutWebsiteCount,
+                emailCount: message.summary.emailCount,
+                items: message.leads ?? currentResponse.items,
+              };
+              this.leadResponse.set({ ...currentResponse });
+              this.leadLoading.set(false);
+              this.leadSearchState.set('completed');
+              this.activeSearchSessionId = null;
+            } else if (message.type === 'error' && message.errorMessage) {
+              this.activeSearchSessionId = null;
+              this.presentLeadSearchError(message.errorMessage);
+            }
+          },
+          error: (err) => {
+            if (this.leadSearchState() !== 'stopped') {
+              this.activeSearchSessionId = null;
+              this.presentLeadSearchError(err);
+            }
+          },
+          complete: () => {
+            this.leadLoading.set(false);
+            if (this.leadSearchState() === 'running') {
+              this.leadSearchState.set('completed');
+            }
+            this.activeSearchSessionId = null;
+          }
+        });
     } catch (error) {
-      this.leadError.set(this.resolveErrorMessage(error));
-    } finally {
-      this.leadLoading.set(false);
+      this.activeSearchSessionId = null;
+      this.presentLeadSearchError(error);
+    }
+  }
+
+  protected stopSearch(): void {
+    if (!this.leadLoading()) {
+      return;
+    }
+
+    this.leadSearchState.set('stopped');
+    this.leadLoading.set(false);
+    this.leadError.set('');
+    this.leadErrorHint.set('');
+    const searchSessionId = this.activeSearchSessionId;
+    this.activeSearchSessionId = null;
+    if (searchSessionId) {
+      void this.leadFinderApi.cancelLeadSearch(searchSessionId);
+    }
+    this.searchSubscription?.unsubscribe();
+    this.searchSubscription = null;
+  }
+
+  protected dismissLeadError(): void {
+    this.leadError.set('');
+    this.leadErrorHint.set('');
+    if (this.leadSearchState() === 'error') {
+      this.leadSearchState.set(this.leadItems().length ? 'stopped' : 'idle');
     }
   }
 
   protected syncLeadToggles(): void {
-    const onlyWithoutWebsite = this.leadForm.controls.onlyWithoutWebsite.value;
+    const websiteFilter = this.leadForm.controls.websiteFilter.value;
     const extractEmailsControl = this.leadForm.controls.extractEmailsFromSites;
     const useGeminiControl = this.leadForm.controls.useGeminiForEmailExtraction;
 
-    if (onlyWithoutWebsite) {
+    if (websiteFilter === 'without_website') {
       extractEmailsControl.setValue(false);
       useGeminiControl.setValue(false);
       extractEmailsControl.disable({ emitEvent: false });
@@ -472,16 +743,24 @@ export class App {
   }
 
   protected resetLeadWorkspace(): void {
+    if (this.leadLoading()) {
+      this.stopSearch();
+    } else {
+      this.searchSubscription?.unsubscribe();
+    }
     this.leadForm.reset({
+      countryCode: this.auth.currentUser()?.allowedCountries[0]?.code ?? '',
       locationQuery: '',
       businessType: 'restaurant',
       maxResults: 10,
-      onlyWithoutWebsite: false,
+      websiteFilter: 'all',
       extractEmailsFromSites: true,
       useGeminiForEmailExtraction: true,
     });
     this.syncLeadToggles();
     this.leadError.set('');
+    this.leadErrorHint.set('');
+    this.leadSearchState.set('idle');
     this.leadResponse.set(null);
     this.copiedPlaceId.set(null);
     this.campaignRecipients.set([]);
@@ -786,6 +1065,8 @@ export class App {
     switch (filter) {
       case 'without_website':
         return 'Sans site web uniquement';
+      case 'with_website':
+        return 'Avec site web uniquement';
       default:
         return 'Tous les commerces';
     }
@@ -1126,14 +1407,33 @@ export class App {
     return project.projectId;
   }
 
-  protected downloadResultsCsv(): void {
+  protected downloadResultsCsv(type: 'full' | 'addresses' | 'phones' = 'full'): void {
     const response = this.leadResponse();
     if (!response?.items.length || typeof document === 'undefined') {
       return;
     }
 
-    const rows = [
-      [
+    let headers: string[];
+    let getRowCells: (item: LeadSearchResultItem) => string[];
+    let fileSuffix: string;
+
+    if (type === 'addresses') {
+      headers = ['Nom', 'Adresse'];
+      getRowCells = (item) => [
+        item.name,
+        item.formattedAddress ?? '',
+      ];
+      fileSuffix = '_adresses';
+    } else if (type === 'phones') {
+      headers = ['Nom', 'Telephone', 'Autres Telephones'];
+      getRowCells = (item) => [
+        item.name,
+        this.primaryPhone(item) ?? '',
+        item.contactPhoneNumbers.join(' | '),
+      ];
+      fileSuffix = '_telephones';
+    } else {
+      headers = [
         'Nom',
         'Categorie',
         'Adresse',
@@ -1147,8 +1447,8 @@ export class App {
         'Telephones site',
         'Pages contact',
         'Opportunite',
-      ],
-      ...response.items.map((item) => [
+      ];
+      getRowCells = (item) => [
         item.name,
         item.businessLabel,
         item.formattedAddress ?? '',
@@ -1162,7 +1462,13 @@ export class App {
         item.contactPhoneNumbers.join(' | '),
         item.contactPageUris.join(' | '),
         this.leadOpportunityText(item),
-      ]),
+      ];
+      fileSuffix = '';
+    }
+
+    const rows = [
+      headers,
+      ...response.items.map(getRowCells),
     ];
 
     const csvContent = rows
@@ -1173,7 +1479,13 @@ export class App {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = this.buildCsvFileName(response.query, this.activeBusinessType().label);
+
+    const baseName = this.buildCsvFileName(response.query, this.activeBusinessType().label);
+    const downloadName = fileSuffix
+      ? baseName.replace(/\.csv$/, `${fileSuffix}.csv`)
+      : baseName;
+
+    link.download = downloadName;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -1363,6 +1675,48 @@ export class App {
     return 'Erreur inconnue';
   }
 
+  private presentLeadSearchError(error: unknown): void {
+    const rawMessage = typeof error === 'string' ? error : this.resolveErrorMessage(error);
+    const normalized = rawMessage.toLowerCase();
+    let message = rawMessage;
+    let hint = 'Verifie les criteres puis relance la recherche. Si le probleme continue, reessaie dans quelques minutes.';
+
+    if (normalized.includes('no location found') || normalized.includes('zone') && normalized.includes('introuvable')) {
+      message = `La zone demandee est introuvable dans ${this.activeSearchCountry()?.name ?? 'le pays autorise'}.`;
+      hint = 'Essaie uniquement le nom de la ville, ajoute le code postal ou corrige l orthographe.';
+    } else if (normalized.includes('overpass') || normalized.includes('configured overpass')) {
+      message = 'Les sources cartographiques sont temporairement indisponibles.';
+      hint = 'Tes resultats deja recus sont conserves. Attends quelques instants puis clique sur Continuer.';
+    } else if (
+      normalized.includes('failed to fetch') ||
+      normalized.includes('network') ||
+      normalized.includes('api is running')
+    ) {
+      message = 'La connexion avec le serveur de recherche a ete interrompue.';
+      hint = 'Verifie que le backend est demarre et que ta connexion internet fonctionne.';
+    } else if (normalized.includes('401') || normalized.includes('identifiants')) {
+      message = 'Ta session a expire. Reconnecte-toi pour continuer.';
+      hint = 'Recharge la page puis saisis de nouveau tes identifiants.';
+    } else if (normalized.includes('403')) {
+      message = 'Ton compte doit etre reactualise avant de poursuivre.';
+      hint = 'Recharge la page. Un nouveau mot de passe peut avoir ete demande par l administrateur.';
+    } else if (normalized.includes('google places api key')) {
+      message = 'La cle Google Places n est pas configuree sur le serveur.';
+      hint = 'Utilise la source OpenStreetMap ou demande a l administrateur de configurer la cle.';
+    } else if (normalized.includes('http 429') || normalized.includes('too many')) {
+      message = 'Trop de recherches ont ete lancees en peu de temps.';
+      hint = 'Attends une minute avant de continuer.';
+    } else if (normalized.includes('reponse') && normalized.includes('illisible')) {
+      message = 'La reponse du serveur est incomplete.';
+      hint = 'Les prospects deja recus restent affiches. Clique sur Continuer pour reprendre.';
+    }
+
+    this.leadError.set(message);
+    this.leadErrorHint.set(hint);
+    this.leadLoading.set(false);
+    this.leadSearchState.set('error');
+  }
+
   private buildWebsiteGenerationRequest(item: LeadSearchResultItem): WebsiteGenerationRequest {
     return {
       placeId: item.placeId,
@@ -1389,6 +1743,33 @@ export class App {
       socialLinks: {},
       languages: ['fr', 'en', 'ar'],
     };
+  }
+
+  private async loadOwnedWebsiteProjects(): Promise<void> {
+    try {
+      const projects = await firstValueFrom(this.leadFinderApi.listWebsiteProjects());
+      const grouped: Record<string, WebsiteProjectResponse[]> = {};
+
+      for (const project of projects) {
+        const placeId = project.placeId?.trim();
+        if (!placeId) {
+          continue;
+        }
+
+        grouped[placeId] = [...(grouped[placeId] ?? []), project];
+      }
+
+      for (const placeId of Object.keys(grouped)) {
+        grouped[placeId].sort(
+          (first, second) =>
+            new Date(second.updatedUtc).getTime() - new Date(first.updatedUtc).getTime(),
+        );
+      }
+
+      this.websiteProjects.set(grouped);
+    } catch {
+      // Project history is helpful but must not block the prospecting workspace.
+    }
   }
 
   private buildLeadReviewSummary(item: LeadSearchResultItem): string | null {
@@ -1446,5 +1827,56 @@ export class App {
           : [project, ...currentProjects],
       };
     });
+  }
+
+  private navigateWorkspace(
+    view: AppWorkspaceView,
+    commercialId?: string,
+    replaceHistory = false,
+  ): void {
+    if (view !== 'prospection' && this.auth.currentUser()?.role !== 'Admin') {
+      return;
+    }
+
+    if (view !== 'prospection' && this.leadLoading()) {
+      this.stopSearch();
+    }
+    this.closeEmailCampaignModal();
+    this.closeWebsiteStudio();
+
+    this.workspaceView.set(view);
+    this.adminCommercialFilter.set(view === 'admin-sites' ? commercialId ?? '' : '');
+
+    const path =
+      view === 'admin-commercials'
+        ? '/admin/commerciaux'
+        : view === 'admin-sites'
+          ? '/admin/sites'
+          : '/prospection';
+    const url = commercialId && view === 'admin-sites'
+      ? `${path}?commercial=${encodeURIComponent(commercialId)}`
+      : path;
+
+    if (replaceHistory) {
+      window.history.replaceState({}, '', url);
+    } else if (`${window.location.pathname}${window.location.search}` !== url) {
+      window.history.pushState({}, '', url);
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  private workspaceFromLocation(): AppWorkspaceView {
+    const path = window.location.pathname.toLocaleLowerCase('fr');
+    if (path.startsWith('/admin/commerciaux')) {
+      return 'admin-commercials';
+    }
+    if (path.startsWith('/admin/sites')) {
+      return 'admin-sites';
+    }
+    return 'prospection';
+  }
+
+  private commercialFilterFromLocation(): string {
+    return new URLSearchParams(window.location.search).get('commercial') ?? '';
   }
 }

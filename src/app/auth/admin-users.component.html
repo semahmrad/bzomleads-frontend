@@ -1,0 +1,208 @@
+<main class="admin-page" aria-labelledby="admin-title">
+  <div class="admin-dialog">
+    <header>
+      <div>
+        <span class="eyebrow">Administration SaaS</span>
+        <h2 id="admin-title">Equipe commerciale</h2>
+        <p>Cree les acces, attribue un pays et retrouve les sites produits par chaque commercial.</p>
+      </div>
+      <div class="page-badge">
+        <strong>{{ commercialUsers().length }}</strong>
+        <span>commerciaux</span>
+      </div>
+    </header>
+
+    @if (loading()) {
+      <div class="loading-state">Chargement du tableau de bord...</div>
+    } @else {
+      <div class="metric-grid">
+        <article><span>Commerciaux</span><strong>{{ totals().commercials }}</strong></article>
+        <article><span>Comptes actifs</span><strong>{{ totals().active }}</strong></article>
+        <article><span>Comptes suspendus</span><strong>{{ totals().suspended }}</strong></article>
+        <article><span>Sites crees</span><strong>{{ totals().websites }}</strong></article>
+        <article><span>Editions de sites</span><strong>{{ totals().websiteEdits }}</strong></article>
+      </div>
+
+      @if (error()) {
+        <div class="status status--error admin-notice" role="alert">{{ error() }}</div>
+      }
+      @if (success()) {
+        <div class="status status--success admin-notice" role="status">{{ success() }}</div>
+      }
+
+      <div class="admin-layout">
+        <form [formGroup]="userForm" (ngSubmit)="createUser()">
+          <div class="form-heading">
+            <span class="eyebrow">Nouveau compte</span>
+            <h3>Ajouter un commercial</h3>
+          </div>
+
+          <label>
+            Nom complet
+            <input type="text" formControlName="displayName" placeholder="Ons Hamdi" />
+          </label>
+          <label>
+            Nom d utilisateur
+            <input type="text" formControlName="username" placeholder="ons.hamdi" autocomplete="off" />
+          </label>
+          <fieldset class="country-multiselect">
+            <legend>Pays autorises · selection multiple</legend>
+            <div class="country-multiselect__list">
+              @for (country of countries(); track country.code) {
+                <label [class.country-option--selected]="isCountrySelected('create', country.code)">
+                  <input
+                    type="checkbox"
+                    [checked]="isCountrySelected('create', country.code)"
+                    (change)="toggleCountry('create', country.code)"
+                  />
+                  <span>{{ country.name }}</span>
+                  <small>{{ country.code }}</small>
+                </label>
+              }
+            </div>
+            <small>{{ userForm.controls.countryCodes.value.length }} pays selectionne(s). Le commercial choisira l un de ces pays avant chaque recherche.</small>
+          </fieldset>
+          <label>
+            Mot de passe temporaire
+            <input type="password" formControlName="password" autocomplete="new-password" />
+            <small>10 caracteres, avec majuscule, minuscule et chiffre.</small>
+          </label>
+          <button type="submit" class="primary-button" [disabled]="creating()">
+            {{ creating() ? 'Creation...' : 'Creer le compte' }}
+          </button>
+
+        </form>
+
+        <section class="users-section">
+          <div class="form-heading">
+            <span class="eyebrow">Portefeuille</span>
+            <h3>Sites par commercial</h3>
+          </div>
+
+          @if (selectedUser(); as managedUser) {
+            <section class="management-editor">
+              <header class="management-editor__head">
+                <div>
+                  <span class="eyebrow">Gestion du compte</span>
+                  <h3>{{ managedUser.displayName }}</h3>
+                </div>
+                <button type="button" class="secondary-button" (click)="cancelManagement()">
+                  Fermer l edition
+                </button>
+              </header>
+
+              <div class="management-grid">
+                <form [formGroup]="editForm" (ngSubmit)="saveUser()">
+                  <label>
+                    Nom complet
+                    <input type="text" formControlName="displayName" />
+                  </label>
+                  <label>
+                    Nom d utilisateur
+                    <input type="text" formControlName="username" />
+                  </label>
+                  <fieldset class="country-multiselect country-multiselect--edit">
+                    <legend>Pays autorises · selection multiple</legend>
+                    <div class="country-multiselect__list">
+                      @for (country of countries(); track country.code) {
+                        <label [class.country-option--selected]="isCountrySelected('edit', country.code)">
+                          <input
+                            type="checkbox"
+                            [checked]="isCountrySelected('edit', country.code)"
+                            (change)="toggleCountry('edit', country.code)"
+                          />
+                          <span>{{ country.name }}</span>
+                          <small>{{ country.code }}</small>
+                        </label>
+                      }
+                    </div>
+                    <small>{{ editForm.controls.countryCodes.value.length }} pays selectionne(s)</small>
+                  </fieldset>
+                  <button type="submit" class="primary-button" [disabled]="managing()">
+                    Enregistrer les modifications
+                  </button>
+                </form>
+
+                <form [formGroup]="resetPasswordForm" (ngSubmit)="resetPassword()">
+                  <div class="form-heading">
+                    <span class="eyebrow">Acces</span>
+                    <h3>Nouveau mot de passe temporaire</h3>
+                  </div>
+                  <label>
+                    Mot de passe
+                    <input type="password" formControlName="newPassword" autocomplete="new-password" />
+                    <small>Le commercial devra le remplacer a la prochaine connexion.</small>
+                  </label>
+                  <button type="submit" class="warning-button" [disabled]="managing()">
+                    Reinitialiser le mot de passe
+                  </button>
+                  <button
+                    type="button"
+                    class="danger-button"
+                    [disabled]="managing()"
+                    (click)="toggleUserAccess(managedUser)"
+                  >
+                    {{ managedUser.isActive ? 'Suspendre le compte' : 'Reactiver le compte' }}
+                  </button>
+                </form>
+              </div>
+            </section>
+          }
+
+          <div class="user-list">
+            @for (user of commercialUsers(); track user.id) {
+              <article class="user-card">
+                <div class="user-card__head">
+                  <div class="avatar">{{ user.displayName.slice(0, 2).toUpperCase() }}</div>
+                  <div>
+                    <strong>{{ user.displayName }}</strong>
+                    <span>{{ '@' + user.username }} · {{ user.allowedCountries.length }} pays</span>
+                  </div>
+                  <div class="user-card__badges">
+                    <span class="country-badge">
+                      @for (country of user.allowedCountries; track country.code) {
+                        {{ country.code }}{{ $last ? '' : ' · ' }}
+                      }
+                    </span>
+                    <span class="access-badge" [attr.data-active]="user.isActive">
+                      {{ user.isActive ? 'Actif' : 'Suspendu' }}
+                    </span>
+                  </div>
+                </div>
+                <div class="user-stats">
+                  <div><span>Sites</span><strong>{{ user.websitesCreatedCount }}</strong></div>
+                  <div><span>Editions</span><strong>{{ user.websitesEditedCount }}</strong></div>
+                </div>
+                <footer>
+                  <span>Derniere connexion: {{ formatDate(user.lastLoginUtc) }}</span>
+                  <span>Derniere activite: {{ formatDate(user.lastActivityUtc) }}</span>
+                  @if (user.mustChangePassword) {
+                    <em>Activation en attente</em>
+                  }
+                </footer>
+                <div class="user-card__actions">
+                  <button type="button" class="sites-button" (click)="viewUserSites(user.id)">
+                    Voir ses sites
+                  </button>
+                  <button type="button" class="secondary-button" (click)="manageUser(user)">
+                    Modifier et securiser
+                  </button>
+                  <button
+                    type="button"
+                    [class]="user.isActive ? 'danger-button' : 'success-button'"
+                    [disabled]="managing()"
+                    (click)="toggleUserAccess(user)"
+                  >
+                    {{ user.isActive ? 'Suspendre' : 'Reactiver' }}
+                  </button>
+                </div>
+              </article>
+            } @empty {
+              <div class="empty-state">Aucun commercial. Cree le premier compte avec le formulaire.</div>
+            }
+          </div>
+        </section>
+      </div>
+    }
+  </div>
+</main>

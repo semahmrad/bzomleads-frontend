@@ -1,0 +1,344 @@
+<main class="websites-page">
+  <section class="page-hero">
+    <div>
+      <span class="eyebrow">Portefeuille digital</span>
+      <h1>Sites generes par les commerciaux</h1>
+      <p>
+        Retrouve chaque creation, son proprietaire, son pays, son statut de publication et tous les
+        liens techniques dans un espace dedie.
+      </p>
+    </div>
+    <div class="hero-mark" aria-hidden="true">
+      <span>LIVE</span>
+      <strong>{{ totals().published }}</strong>
+      <small>sites en ligne</small>
+    </div>
+  </section>
+
+  <section class="metric-grid" aria-label="Resume des sites">
+    <article><span>Sites generes</span><strong>{{ totals().websites }}</strong><small>toutes creations</small></article>
+    <article><span>En ligne</span><strong>{{ totals().published }}</strong><small>publication disponible</small></article>
+    <article><span>Liens envoyes</span><strong>{{ totals().delivered }}</strong><small>marques comme transmis</small></article>
+    <article><span>Commerciaux</span><strong>{{ totals().commercials }}</strong><small>avec au moins un site</small></article>
+  </section>
+
+  <section class="commercial-strip" aria-label="Sites par commercial">
+    <div class="commercial-strip__heading">
+      <span class="eyebrow">Choisir un commercial</span>
+      <strong>Portefeuilles individuels</strong>
+    </div>
+    <div class="commercial-strip__list">
+      <button
+        type="button"
+        [class.commercial-button--active]="commercialId() === 'all'"
+        (click)="selectCommercial('all')"
+      >
+        <span>Tous</span>
+        <strong>{{ totals().websites }}</strong>
+      </button>
+      @for (commercial of commercialOptions(); track commercial.id) {
+        <button
+          type="button"
+          [class.commercial-button--active]="commercialId() === commercial.id"
+          (click)="selectCommercial(commercial.id)"
+        >
+          <span>{{ commercial.name }}</span>
+          <small>{{ commercial.country || 'N/A' }}</small>
+          <strong>{{ commercial.count }}</strong>
+        </button>
+      }
+    </div>
+  </section>
+
+  <section class="filters-panel" aria-label="Filtres des sites">
+    <label class="search-field">
+      <span>Rechercher</span>
+      <input
+        type="search"
+        placeholder="Nom du site, commercial, pays, projet..."
+        [value]="searchQuery()"
+        (input)="updateSearch($event)"
+      />
+    </label>
+    <label>
+      <span>Publication</span>
+      <select [value]="statusFilter()" (change)="updateStatus($event)">
+        <option value="all">Tous les statuts</option>
+        <option value="Published">En ligne</option>
+        <option value="RepositoryReady">Depot cree</option>
+        <option value="Generated">Genere uniquement</option>
+      </select>
+    </label>
+    <label>
+      <span>Envoi client</span>
+      <select [value]="deliveryFilter()" (change)="updateDeliveryFilter($event)">
+        <option value="all">Tous les envois</option>
+        <option value="sent">Envoye au client</option>
+        <option value="not-sent">Pas encore envoye</option>
+      </select>
+    </label>
+    <button type="button" class="clear-button" (click)="clearFilters()">Effacer les filtres</button>
+  </section>
+
+  @if (error()) {
+    <div class="notice notice--error" role="alert">
+      <strong>Impossible de charger les sites</strong>
+      <span>{{ error() }}</span>
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="loading-state">
+      <span class="loader"></span>
+      <strong>Chargement du portefeuille...</strong>
+    </div>
+  } @else if (!filteredProjects().length) {
+    <div class="empty-state">
+      <strong>Aucun site ne correspond a ces filtres.</strong>
+      <span>Efface les filtres ou attends la prochaine generation d un commercial.</span>
+      <button type="button" class="clear-button" (click)="clearFilters()">Afficher tous les sites</button>
+    </div>
+  } @else {
+    <section class="websites-workspace">
+      <aside class="project-list" aria-label="Liste des sites">
+        <div class="list-heading">
+          <strong>{{ filteredProjects().length }} site(s)</strong>
+          <span>Classement par derniere activite</span>
+        </div>
+        @for (project of filteredProjects(); track project.projectId) {
+          <button
+            type="button"
+            class="project-item"
+            [class.project-item--active]="selectedProject().projectId === project.projectId"
+            (click)="selectProject(project)"
+          >
+            <span class="project-item__topline">
+              <span class="status-badge" [attr.data-status]="project.status">
+                {{ statusLabel(project.status) }}
+              </span>
+              <time>{{ formatDate(project.updatedUtc) }}</time>
+            </span>
+            <strong>{{ project.businessName }}</strong>
+            <span class="project-owner">
+              <span class="mini-avatar">{{ ownerInitials(project) }}</span>
+              {{ project.createdByDisplayName || project.createdByUsername || 'Ancien compte' }}
+            </span>
+            <span class="project-item__meta">
+              {{ project.templateName }}
+              <i></i>
+              {{ project.commercialCountryCode || 'Pays N/A' }}
+            </span>
+            <span class="delivery-mini" [attr.data-sent]="project.clientLinkSent">
+              {{ project.clientLinkSent ? 'Lien client envoye' : 'Envoi client en attente' }}
+            </span>
+          </button>
+        }
+      </aside>
+
+      @if (selectedProject(); as project) {
+        <article class="project-detail">
+          <header class="detail-header">
+            <div>
+              <span class="status-badge" [attr.data-status]="project.status">
+                {{ statusLabel(project.status) }}
+              </span>
+              <h2>{{ project.businessName }}</h2>
+              <p>{{ project.designConcept }}</p>
+            </div>
+            <div class="detail-actions">
+              @if (project.productionUrl) {
+                <a class="action-primary" [href]="project.productionUrl" target="_blank" rel="noopener">
+                  Lien client
+                </a>
+              }
+              @if (project.repositoryUrl) {
+                <a [href]="project.repositoryUrl" target="_blank" rel="noopener">Depot GitHub</a>
+              }
+              @if (project.downloadUrl) {
+                <a [href]="project.downloadUrl">Telecharger ZIP</a>
+              }
+            </div>
+          </header>
+
+          <section class="owner-card">
+            <span class="owner-avatar">{{ ownerInitials(project) }}</span>
+            <div>
+              <span>Site cree par</span>
+              <strong>{{ project.createdByDisplayName || 'Commercial inconnu' }}</strong>
+              <small>
+                {{ project.createdByUsername ? '@' + project.createdByUsername : 'Identifiant historique' }}
+                ·
+                @if (project.commercialCountries.length) {
+                  @for (country of project.commercialCountries; track country.code) {
+                    {{ country.name }}{{ $last ? '' : ', ' }}
+                  }
+                } @else {
+                  {{ project.commercialCountryName || 'Pays non renseigne' }}
+                }
+              </small>
+            </div>
+            <span class="account-status" [attr.data-active]="project.commercialIsActive">
+              {{ project.commercialIsActive === false ? 'Compte suspendu' : 'Compte actif' }}
+            </span>
+          </section>
+
+          <section class="project-links" aria-label="Liens du site">
+            <article>
+              <div>
+                <span>Lien client · site publie</span>
+                @if (project.productionUrl) {
+                  <a [href]="project.productionUrl" target="_blank" rel="noopener">{{ project.productionUrl }}</a>
+                } @else {
+                  <strong>Le site n est pas encore publie.</strong>
+                }
+              </div>
+              @if (project.productionUrl) {
+                <button type="button" (click)="copyUrl('client', project.productionUrl)">
+                  {{ copiedLink() === 'client' ? 'Lien copie !' : 'Copier le lien client' }}
+                </button>
+              }
+            </article>
+            <article>
+              <div>
+                <span>Depot source · GitHub</span>
+                @if (project.repositoryUrl) {
+                  <a [href]="project.repositoryUrl" target="_blank" rel="noopener">{{ project.repositoryUrl }}</a>
+                } @else {
+                  <strong>Aucun depot GitHub disponible.</strong>
+                }
+              </div>
+              @if (project.repositoryUrl) {
+                <button type="button" (click)="copyUrl('github', project.repositoryUrl)">
+                  {{ copiedLink() === 'github' ? 'Lien copie !' : 'Copier le lien GitHub' }}
+                </button>
+              }
+            </article>
+          </section>
+
+          <section class="client-tracking" [attr.data-sent]="project.clientLinkSent">
+            <header>
+              <div>
+                <span class="eyebrow">Suivi de livraison</span>
+                <h3>{{ project.clientLinkSent ? 'Lien envoye au client' : 'Lien pas encore envoye' }}</h3>
+                @if (project.clientLinkSentUtc) {
+                  <small>Envoi enregistre le {{ formatDate(project.clientLinkSentUtc) }}</small>
+                } @else {
+                  <small>Renseigne le client puis confirme l envoi du site publie.</small>
+                }
+              </div>
+              <span class="delivery-status">
+                {{ project.clientLinkSent ? 'Envoye' : 'En attente' }}
+              </span>
+            </header>
+
+            <form [formGroup]="deliveryForm">
+              <label>
+                <span>Nom du client</span>
+                <input type="text" formControlName="clientName" placeholder="Nom ou societe" />
+              </label>
+              <label>
+                <span>Contact du client</span>
+                <input
+                  type="text"
+                  formControlName="clientContact"
+                  placeholder="Email, telephone ou WhatsApp"
+                />
+              </label>
+              <label class="tracking-notes">
+                <span>Note de suivi</span>
+                <textarea
+                  formControlName="notes"
+                  rows="3"
+                  placeholder="Exemple : lien envoye par WhatsApp, retour attendu vendredi."
+                ></textarea>
+              </label>
+              <div class="tracking-actions">
+                @if (!project.clientLinkSent) {
+                  <button
+                    type="button"
+                    class="mark-sent-button"
+                    [disabled]="savingDelivery() || !project.productionUrl"
+                    (click)="saveClientDelivery(true)"
+                  >
+                    {{ savingDelivery() ? 'Enregistrement...' : 'Marquer comme envoye au client' }}
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="save-tracking-button"
+                    [disabled]="savingDelivery()"
+                    (click)="saveClientDelivery(true)"
+                  >
+                    Enregistrer les informations
+                  </button>
+                  <button
+                    type="button"
+                    class="cancel-delivery-button"
+                    [disabled]="savingDelivery()"
+                    (click)="saveClientDelivery(false)"
+                  >
+                    Annuler le statut envoye
+                  </button>
+                }
+              </div>
+            </form>
+            @if (deliverySuccess()) {
+              <div class="tracking-success" role="status">{{ deliverySuccess() }}</div>
+            }
+          </section>
+
+          <section class="information-grid">
+            <article>
+              <span>Date de creation</span>
+              <strong>{{ formatDate(project.createdUtc) }}</strong>
+            </article>
+            <article>
+              <span>Derniere modification</span>
+              <strong>{{ formatDate(project.updatedUtc) }}</strong>
+            </article>
+            <article>
+              <span>Template</span>
+              <strong>{{ project.templateName }}</strong>
+              <small>{{ project.templateId }}</small>
+            </article>
+            <article>
+              <span>Modele IA</span>
+              <strong>{{ project.modelUsed }}</strong>
+            </article>
+            <article>
+              <span>Assets ajoutes</span>
+              <strong>{{ project.uploadedImageCount }} image(s)</strong>
+              <small>{{ project.hasCustomLogo ? 'Logo personnalise inclus' : 'Sans logo personnalise' }}</small>
+            </article>
+            <article>
+              <span>Historique</span>
+              <strong>{{ project.hasBeenEdited ? 'Site deja modifie' : 'Version initiale' }}</strong>
+            </article>
+          </section>
+
+          <section class="detail-block">
+            <div class="block-heading">
+              <span>Dernier changement</span>
+              <strong>Resume de generation</strong>
+            </div>
+            <p>{{ project.changeSummary || 'Aucun resume de modification disponible pour ce projet.' }}</p>
+          </section>
+
+          <section class="technical-block">
+            <div>
+              <span>ID du projet</span>
+              <code>{{ project.projectId }}</code>
+            </div>
+            <button type="button" (click)="copyProjectId(project.projectId)">
+              {{ copiedProjectId() === project.projectId ? 'Copie !' : 'Copier l ID' }}
+            </button>
+            <div>
+              <span>Google Place ID</span>
+              <code>{{ project.placeId || 'Non disponible' }}</code>
+            </div>
+          </section>
+        </article>
+      }
+    </section>
+  }
+</main>
